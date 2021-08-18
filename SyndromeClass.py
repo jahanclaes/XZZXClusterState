@@ -95,7 +95,7 @@ X   X  1   4
 
 class Syndrome:
 
-    def __init__(self,p,eta):
+    def __init__(self,dt,dz,dx,p,eta):
         """
         Initializes a Syndrome object
         dx and dz are the dimensions of the code
@@ -107,10 +107,39 @@ class Syndrome:
         self.p = p #Probability of Z errors
         self.eta = eta #Probability of X errors is p/eta
         self.correctMatches = {}
+        self.errorChains = []
         self.decodedMatches = {}
+
+    def PlotCluster(self,ax):
+        for tIndex in range(self.dt):
+            for zIndex in range(2*self.dz-1):
+                for xIndex in range(self.dx-zIndex%2):
+                    if zIndex%2==0:
+                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex,marker='o',color='k',s=10)
+                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex+1/2,marker='$\circ$',color='k',s=100)
+                    else:
+                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex,marker='$\circ$',color='k',s=100)
+                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex+1/2,marker='o',color='k',s=10)
+                for xIndex in range(self.dx-(zIndex+1)%2):
+                    if zIndex%2==0:
+                        ax.scatter(zIndex/2,xIndex+((zIndex+1)%2)/2,tIndex,marker='o',color='k',s=10)
+                    else:
+                        ax.scatter(zIndex/2,xIndex+((zIndex+1)%2)/2,tIndex+1/2,marker='o',color='k',s=10)
+            for zIndex in range(2*self.dz-1):
+                plt.plot([zIndex/2,zIndex/2],[0,self.dx-1],[tIndex+(zIndex%2)/2,tIndex+(zIndex%2)/2],color='grey',lw=1)
+            for xIndex in range(self.dx):
+                plt.plot([0,self.dz-1],[xIndex,xIndex],[tIndex+1/2,tIndex+1/2],color='grey',lw=1)
+                if xIndex<self.dx-1:
+                    plt.plot([0,self.dz-1],[xIndex+1/2,xIndex+1/2],[tIndex,tIndex],color='grey',lw=1)
+        for zIndex in range(2*self.dz-1):
+            for xIndex in range(self.dx-(zIndex)%2):
+                plt.plot([zIndex/2,zIndex/2],[xIndex+(zIndex%2)/2,xIndex+(zIndex%2)/2],[0,self.dt-1/2],color='grey',lw=1)
+
+                    
 
     def AddMatchedPair(self,point1,point2):
         if point1!=point2:
+            self.errorChains.append((point1,point2))
             if point1 in self.correctMatches.keys() and point2 in self.correctMatches.keys():
                 if self.correctMatches[point1]!=self.correctMatches[point2]:
                     self.correctMatches[self.correctMatches[point1]]=self.correctMatches[point2]
@@ -148,23 +177,55 @@ class Syndrome:
         for tIndex in range(self.dt):
             for zIndex in range(2*self.dz-1):
                 for xIndex in range(self.dx-1+zIndex%2):
-                    #Ancilla qubit errors
-                    error = random.choices(["I","X","Y","Z"],weights = [1-self.p*(1-2/self.eta),self.p/self.eta,self.p/self.eta,self.p])
+                    #Error on ancilla qubit
+                    error = random.choices(["I","X","Y","Z"],weights = [1-self.p*(1-2/self.eta),self.p/self.eta,self.p/self.eta,self.p])[0]
                     if error == "Y" or error=="Z": #Generate a defect pair
-                        if tIndex==0:
-                            self.AddMatchedPair("B",(tIndex,zIndex,xIndex)) #"B" is the node corresponding to the bottom edge of the cluster
-                        elif tIndex==self.dt-1:
-                            self.AddMatchedPair("T",(tIndex,zIndex,xIndex)) #"T" is the node corresponding to the top edge of the cluster
-                        else:
-                            self.AddMatchedPair((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex))
+                        self.AddMatchedPair((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex))
                 for xIndex in range(self.dx-(zIndex)%2):
-                    #Data qubit errors
-                    error = random.choices(["I","X","Y","Z"],weights = [1-self.p*(1-2/self.eta),self.p/self.eta,self.p/self.eta,self.p]) #Error on lower qubit pair
-                    
-                    error = random.choices(["I","X","Y","Z"],weights = [1-self.p*(1-2/self.eta),self.p/self.eta,self.p/self.eta,self.p]) #Error on upper qubit pair
-             
-                    
-                        
+                    #Error on lower data qubit
+                    error = random.choices(["I","X","Y","Z"],weights = [1-self.p*(1-2/self.eta),self.p/self.eta,self.p/self.eta,self.p])[0]
+                    if zIndex%2==0 and (error=="Z" or error=="Y"):
+                        if zIndex==0:
+                            self.AddMatchedPair("L",(tIndex-1,zIndex+1,xIndex)) #L is the node corresponding to the left of the cluster
+                        elif zIndex==2*self.dz-2:
+                            self.AddMatchedPair("R",(tIndex-1,zIndex-1,xIndex)) #R is the node corresponding to the right of the cluster
+                        else:
+                            self.AddMatchedPair((tIndex-1,zIndex-1,xIndex),(tIndex-1,zIndex+1,xIndex))
+                    if zIndex%2==1 and (error=="X" or error=="Y"):
+                        self.AddMatchedPair((tIndex-1,zIndex,xIndex),(tIndex-1,zIndex,xIndex+1))
+                    #Error on upper data qubit
+                    error = random.choices(["I","X","Y","Z"],weights = [1-self.p*(1-2/self.eta),self.p/self.eta,self.p/self.eta,self.p])[0]
+                    if zIndex%2==0 and (error=="X" or error=="Y"):
+                        if xIndex==0:
+                            self.AddMatchedPair("B",(tIndex,zIndex,xIndex)) #B is the node corresponding to the bottom of the cluster
+                        elif xIndex==self.dx-(zIndex)%2-1:
+                            self.AddMatchedPair("T",(tIndex,zIndex,xIndex-1)) #T is the node corresponding to the top of the cluster
+                        else:
+                            self.AddMatchedPair((tIndex,zIndex,xIndex),(tIndex,zIndex,xIndex-1))
+                    elif zIndex%2==1 and (error=="Z" or error=="Y"):
+                        self.AddMatchedPair((tIndex,zIndex-1,xIndex),(tIndex,zIndex+1,xIndex))
+                                           
+    def ComputeWeight(self,node1,node2):
+        p=self.p
+        eta=self.eta
+        if node2=="T":
+            weight = -math.log(2*p/eta/(1-2*p/eta))*(self.dx-1-node1[2])
+        elif node2=="B":
+            weight = -math.log(2*p/eta/(1-2*p/eta))*(node1[2]+1)
+        elif node2=="L":
+            weight = -math.log((p+p/eta)/(1-p-p/eta))*(node1[1]+1)/2
+        elif node2=="R":
+            weight = -math.log((p+p/eta)/(1-p-p/eta))*(2*self.dz-node1[1]-1)/2
+        else:
+            zDistance =abs(node2[1]-node1[1])/2
+            tDistance =abs(node2[0]-node1[0])
+            xDistance =abs(node2[2]-node1[2]) 
+            if node1[1]%2==0:
+                weight = -(math.log(2*p/eta/(1-2*p/eta))*zDistance+math.log((p+p/eta)/(1-p-p/eta))*xDistance+math.log((p+p/eta)/(1-p-p/eta))*tDistance)
+            else :
+                weight = -(math.log((p+p/eta)/(1-p-p/eta))*zDistance+math.log(2*p/eta/(1-2*p/eta))*xDistance+math.log((p+p/eta)/(1-p-p/eta))*tDistance)
+        return weight
+
     def MatchErrors(self):
         """
         Call after GenerateErrors().
@@ -185,24 +246,11 @@ class Syndrome:
         oddEdgeNodes=[]
         for nodeIndex1 in range(len(evenErrorNodes)):
             for nodeIndex2 in range(nodeIndex1+1,len(evenErrorNodes)):
-                weight = self.distanceDict[evenErrorNodes[nodeIndex1]][evenErrorNodes[nodeIndex2]]
+                weight = self.ComputeWeight(evenErrorNodes[nodeIndex1],evenErrorNodes[nodeIndex2])
                 evenErrorGraph.append((evenErrorNodes[nodeIndex1],evenErrorNodes[nodeIndex2],weight))
-            if "S" in self.distanceDict[evenErrorNodes[nodeIndex1]]:
-                minWeight = min([self.distanceDict[evenErrorNodes[nodeIndex1]]["T"],self.distanceDict[evenErrorNodes[nodeIndex1]]["B"],self.distanceDict[evenErrorNodes[nodeIndex1]]["S"],self.distanceDict[evenErrorNodes[nodeIndex1]]["E"]])
-                if minWeight==self.distanceDict[evenErrorNodes[nodeIndex1]]["T"]:
-                    label = ("T",nodeIndex1)
-                elif minWeight==self.distanceDict[evenErrorNodes[nodeIndex1]]["B"]:
-                    label = ("B",nodeIndex1)
-                elif minWeight==self.distanceDict[evenErrorNodes[nodeIndex1]]["S"]:
-                    label = ("S",nodeIndex1)
-                elif minWeight==self.distanceDict[evenErrorNodes[nodeIndex1]]["E"]:
-                    label = ("E",nodeIndex1)
-            else:
-                minWeight = min([self.distanceDict[evenErrorNodes[nodeIndex1]]["T"],self.distanceDict[evenErrorNodes[nodeIndex1]]["B"]])
-                if minWeight==self.distanceDict[evenErrorNodes[nodeIndex1]]["T"]:
-                    label = ("T",nodeIndex1)
-                elif minWeight==self.distanceDict[evenErrorNodes[nodeIndex1]]["B"]:
-                    label = ("B",nodeIndex1)
+            edgeWeights = [self.ComputeWeight(evenErrorNodes[nodeIndex1],edge) for edge in ["T","B"]]
+            minWeight = min(edgeWeights)
+            label = ["T","B"][edgeWeights.index(minWeight)]+str(nodeIndex1)
             evenErrorGraph.append((evenErrorNodes[nodeIndex1],label,minWeight))
             evenEdgeNodes.append(label)
         for nodeIndex1 in range(len(evenEdgeNodes)):
@@ -217,17 +265,11 @@ class Syndrome:
 
         for nodeIndex1 in range(len(oddErrorNodes)):
             for nodeIndex2 in range(nodeIndex1+1,len(oddErrorNodes)):
-                weight = self.distanceDict[oddErrorNodes[nodeIndex1]][oddErrorNodes[nodeIndex2]]
+                weight = self.ComputeWeight(oddErrorNodes[nodeIndex1],oddErrorNodes[nodeIndex2])
                 oddErrorGraph.append((oddErrorNodes[nodeIndex1],oddErrorNodes[nodeIndex2],weight))
-            minWeight = min([self.distanceDict[oddErrorNodes[nodeIndex1]]["L"],self.distanceDict[oddErrorNodes[nodeIndex1]]["R"],self.distanceDict[oddErrorNodes[nodeIndex1]]["S"],self.distanceDict[oddErrorNodes[nodeIndex1]]["E"]])
-            if minWeight==self.distanceDict[oddErrorNodes[nodeIndex1]]["L"]:
-                label = ("L",nodeIndex1)
-            elif minWeight==self.distanceDict[oddErrorNodes[nodeIndex1]]["R"]:
-                label = ("R",nodeIndex1)
-            elif minWeight==self.distanceDict[oddErrorNodes[nodeIndex1]]["S"]:
-                label = ("S",nodeIndex1)
-            elif minWeight==self.distanceDict[oddErrorNodes[nodeIndex1]]["E"]:
-                label = ("E",nodeIndex1)
+            edgeWeights = [self.ComputeWeight(oddErrorNodes[nodeIndex1],edge) for edge in ["L","R"]]
+            minWeight = min(edgeWeights)
+            label = ["L","R"][edgeWeights.index(minWeight)]+str(nodeIndex1)
             oddErrorGraph.append((oddErrorNodes[nodeIndex1],label,minWeight))
             oddEdgeNodes.append(label)
         for nodeIndex1 in range(len(oddEdgeNodes)):
@@ -262,40 +304,28 @@ class Syndrome:
         Call after AttemptCorrectionOfErrors
         Returns the logical errors we made by attempting error correction
         """
-        ZLogicalError,Z1LogicalError,Z2LogicalError,XLogicallError,TimeLogicalError=False,False,False,False,False
+        ZLogicalError,XLogicallError=False,False
         if "S" in self.correctMatches.keys():
-            if self.correctMatches["S"]=="L":
-                Z1LogicalError=not Z1LogicalError
-            if self.correctMatches["S"]=="R":
-                Z2LogicalError=not Z2LogicalError
             if self.correctMatches["S"]=="E":
-                TimeLogicalError=not TimeLogicalError
-        if "E" in self.correctMatches.keys():
-            if self.correctMatches["E"]=="L":
-                Z1LogicalError=not Z1LogicalError
-            if self.correctMatches["E"]=="R":
-                Z2LogicalError=not Z2LogicalError
+                TLogicalError=not TLogicalError
         if "L" in self.correctMatches.keys():
             if self.correctMatches["L"]=="R":
                 ZLogicalError=not ZLogicalError
         if "T" in self.correctMatches.keys():
             if self.correctMatches["T"]=="B":
                 XLogicallError=not XLogicallError
-        return ZLogicalError,Z1LogicalError,Z2LogicalError,XLogicallError,TimeLogicalError
+        return ZLogicalError,XLogicallError
                 
 
 
         
-"""
-dz,dx=2,3
-numMeasurements=5
+dz,dx,dt=2,2,2
 eta=1
-p = .005
-S = Syndrome(dz,dx,numMeasurements,p,eta)
-S.GenerateDistanceDict()
-for i in range(100):
-    S = Syndrome(dz,dx,numMeasurements,p,eta)
+p = .05
+for i in range(1):
+    S = Syndrome(dt,dz,dx,p,eta)
     S.GenerateErrors()
+    print(S.correctMatches)
     saveFile=open("saveFile.pk",'wb')
     pickle.dump(S,saveFile)
     saveFile.close()
@@ -305,10 +335,9 @@ for i in range(100):
     S.MatchErrors()
     fig = plt.figure()
     ax = fig.add_subplot(1,1,1,projection='3d')
-    S.Plot3D(ax,parity=0)
-    S.Plot3D(ax,parity=1)
+    S.PlotCluster(ax)
+    plt.show()
     S.AttemptCorrectionOfErrors()
     print(S.correctMatches)
-    print("Z,Z1,Z2,X,T",S.FindLogicalErrors())
+    print("Z,X,T",S.FindLogicalErrors())
     plt.show()
-""" 
