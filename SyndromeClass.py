@@ -108,33 +108,71 @@ class Syndrome:
         self.eta = eta #Probability of X errors is p/eta
         self.correctMatches = {}
         self.errorChains = []
-        self.decodedMatches = {}
+        self.decodedMatches = []
 
-    def PlotCluster(self,ax):
+    def PlotCluster(self,ax,errorColor="red"):
+        #Plot the cluster qubits
+        clusterColor,clusterLineWeight="grey",0
+        ZQubitSize,XQubitSize=0,0
         for tIndex in range(self.dt):
             for zIndex in range(2*self.dz-1):
                 for xIndex in range(self.dx-zIndex%2):
                     if zIndex%2==0:
-                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex,marker='o',color='k',s=10)
-                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex+1/2,marker='$\circ$',color='k',s=100)
+                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex,marker='o',color='k',s=XQubitSize)
+                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex+1/2,marker='$\circ$',color='k',s=ZQubitSize)
                     else:
-                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex,marker='$\circ$',color='k',s=100)
-                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex+1/2,marker='o',color='k',s=10)
+                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex,marker='$\circ$',color='k',s=ZQubitSize)
+                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex+1/2,marker='o',color='k',s=XQubitSize)
                 for xIndex in range(self.dx-(zIndex+1)%2):
                     if zIndex%2==0:
-                        ax.scatter(zIndex/2,xIndex+((zIndex+1)%2)/2,tIndex,marker='o',color='k',s=10)
+                        ax.scatter(zIndex/2,xIndex+((zIndex+1)%2)/2,tIndex,marker='o',color='k',s=XQubitSize)
                     else:
-                        ax.scatter(zIndex/2,xIndex+((zIndex+1)%2)/2,tIndex+1/2,marker='o',color='k',s=10)
+                        ax.scatter(zIndex/2,xIndex+((zIndex+1)%2)/2,tIndex+1/2,marker='o',color='k',s=XQubitSize)
             for zIndex in range(2*self.dz-1):
-                plt.plot([zIndex/2,zIndex/2],[0,self.dx-1],[tIndex+(zIndex%2)/2,tIndex+(zIndex%2)/2],color='grey',lw=1)
+                plt.plot([zIndex/2,zIndex/2],[0,self.dx-1],[tIndex+(zIndex%2)/2,tIndex+(zIndex%2)/2],color=clusterColor,lw=clusterLineWeight)
             for xIndex in range(self.dx):
-                plt.plot([0,self.dz-1],[xIndex,xIndex],[tIndex+1/2,tIndex+1/2],color='grey',lw=1)
+                plt.plot([0,self.dz-1],[xIndex,xIndex],[tIndex+1/2,tIndex+1/2],color=clusterColor,lw=clusterLineWeight)
                 if xIndex<self.dx-1:
-                    plt.plot([0,self.dz-1],[xIndex+1/2,xIndex+1/2],[tIndex,tIndex],color='grey',lw=1)
+                    plt.plot([0,self.dz-1],[xIndex+1/2,xIndex+1/2],[tIndex,tIndex],color=clusterColor,lw=clusterLineWeight)
         for zIndex in range(2*self.dz-1):
             for xIndex in range(self.dx-(zIndex)%2):
-                plt.plot([zIndex/2,zIndex/2],[xIndex+(zIndex%2)/2,xIndex+(zIndex%2)/2],[0,self.dt-1/2],color='grey',lw=1)
-
+                plt.plot([zIndex/2,zIndex/2],[xIndex+(zIndex%2)/2,xIndex+(zIndex%2)/2],[0,self.dt-1/2],color=clusterColor,lw=clusterLineWeight)
+        #Plot the errors
+        errorColor,errorWeight,matchColor='red',4,'blue'
+        for point1,point2 in self.errorChains:
+            if type(point1)==str:
+                point1,point2=point2,point1
+            if point2=="T" and type(point1)!=str:
+                point2 = (point1[0],point1[1],self.dx-1)
+            elif point2=="B" and type(point1)!=str:
+                point2 = (point1[0],point1[1],-1)
+            elif point2=="L" and type(point1)!=str:
+                point2 = (point1[0],-1,point1[2])
+            elif point2=="R" and type(point1)!=str:
+                point2 = (point1[0],2*self.dz-1,point1[2])
+            if type(point1)!=str:
+                if point1[1]%2==0:
+                    plt.plot([point1[1]/2,point2[1]/2],[point1[2]+((point1[1]+1)%2)/2,point2[2]+((point2[1]+1)%2)/2],[point1[0]+.5,point2[0]+.5],color=errorColor,lw=errorWeight)
+                else:
+                    plt.plot([point1[1]/2,point2[1]/2],[point1[2]+((point1[1]+1)%2)/2,point2[2]+((point2[1]+1)%2)/2],[point1[0]+1,point2[0]+1],color=errorColor,lw=errorWeight)
+        for point1,point2 in self.decodedMatches:
+            if type(point1)==str:
+                point1,point2=point2,point1
+            if point2[0]=="T" and type(point1)!=str:
+                point2 = (point1[0],point1[1],self.dx-1)
+            elif point2[0]=="B" and type(point1)!=str:
+                point2 = (point1[0],point1[1],-1)
+            elif point2[0]=="L" and type(point1)!=str:
+                point2 = (point1[0],-1,point1[2])
+            elif point2[0]=="R" and type(point1)!=str:
+                point2 = (point1[0],2*self.dz-1,point1[2])
+            if type(point1)!=str:
+                if point1[1]%2==0:
+                    plt.plot([point1[1]/2,point2[1]/2],[point1[2]+((point1[1]+1)%2)/2,point2[2]+((point2[1]+1)%2)/2],[point1[0]+.5,point2[0]+.5],color=matchColor,lw=errorWeight,ls='dotted')
+                else:
+                    plt.plot([point1[1]/2,point2[1]/2],[point1[2]+((point1[1]+1)%2)/2,point2[2]+((point2[1]+1)%2)/2],[point1[0]+1,point2[0]+1],color=matchColor,lw=errorWeight,ls='dotted')
+                
+                
                     
 
     def AddMatchedPair(self,point1,point2):
@@ -305,9 +343,6 @@ class Syndrome:
         Returns the logical errors we made by attempting error correction
         """
         ZLogicalError,XLogicallError=False,False
-        if "S" in self.correctMatches.keys():
-            if self.correctMatches["S"]=="E":
-                TLogicalError=not TLogicalError
         if "L" in self.correctMatches.keys():
             if self.correctMatches["L"]=="R":
                 ZLogicalError=not ZLogicalError
@@ -319,13 +354,12 @@ class Syndrome:
 
 
         
-dz,dx,dt=2,2,2
-eta=1
+dz,dx,dt=5,5,5
+eta=10
 p = .05
-for i in range(1):
+for i in range(10):
     S = Syndrome(dt,dz,dx,p,eta)
     S.GenerateErrors()
-    print(S.correctMatches)
     saveFile=open("saveFile.pk",'wb')
     pickle.dump(S,saveFile)
     saveFile.close()
@@ -336,8 +370,7 @@ for i in range(1):
     fig = plt.figure()
     ax = fig.add_subplot(1,1,1,projection='3d')
     S.PlotCluster(ax)
-    plt.show()
+    print(S.errorChains)
     S.AttemptCorrectionOfErrors()
-    print(S.correctMatches)
-    print("Z,X,T",S.FindLogicalErrors())
+    print("Z,X",S.FindLogicalErrors())
     plt.show()
