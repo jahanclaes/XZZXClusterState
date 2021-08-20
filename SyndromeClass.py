@@ -95,7 +95,7 @@ X   X  1   4
 
 class Syndrome:
 
-    def __init__(self,dt,dz,dx,p,eta):
+    def __init__(self,dt,dz,dx,p,eta,XZZX=True):
         """
         Initializes a Syndrome object
         dx and dz are the dimensions of the code
@@ -105,6 +105,7 @@ class Syndrome:
         self.dt = dt #Time-distance of the cluster
         self.p = p #Probability of Z errors
         self.eta = eta #Probability of X errors is p/eta
+        self.XZZX = XZZX
         self.correctMatches = {}
         self.errorChains = []
         self.decodedMatches = []
@@ -229,11 +230,11 @@ class Syndrome:
                             self.AddMatchedPair("R",(tIndex-1,zIndex-1,xIndex)) #R is the node corresponding to the right of the cluster
                         else:
                             self.AddMatchedPair((tIndex-1,zIndex-1,xIndex),(tIndex-1,zIndex+1,xIndex))
-                    if zIndex%2==1 and (error=="X" or error=="Y"):
+                    elif zIndex%2==1 and (((error=="X" or error=="Y") and self.XZZX) or ((error=="Z" or error=="Y") and not self.XZZX)):
                         self.AddMatchedPair((tIndex-1,zIndex,xIndex),(tIndex-1,zIndex,xIndex+1))
                     #Error on upper data qubit
                     error = random.choices(["I","X","Y","Z"],weights = [1-self.p*(1-2/self.eta),self.p/self.eta,self.p/self.eta,self.p])[0]
-                    if zIndex%2==0 and (error=="X" or error=="Y"):
+                    if zIndex%2==0 and (((error=="X" or error=="Y") and self.XZZX) or ((error=="Z" or error=="Y") and not self.XZZX)):
                         if xIndex==0:
                             self.AddMatchedPair("B",(tIndex,zIndex,xIndex)) #B is the node corresponding to the bottom of the cluster
                         elif xIndex==self.dx-(zIndex)%2-1:
@@ -246,10 +247,14 @@ class Syndrome:
     def ComputeWeight(self,node1,node2):
         p=self.p
         eta=self.eta
-        if node2=="T":
+        if node2=="T" and self.XZZX:
             weight = -math.log(2*p/eta/(1-2*p/eta))*(self.dx-1-node1[2])
-        elif node2=="B":
+        elif node2=="T" and not self.XZZX:
+            weight = -math.log((p+p/eta)/(1-p-p/eta))*(self.dx-1-node1[2])
+        elif node2=="B" and self.XZZX:
             weight = -math.log(2*p/eta/(1-2*p/eta))*(node1[2]+1)
+        elif node2=="B" and not self.XZZX:
+            weight = -math.log((p+p/eta)/(1-p-p/eta))*(node1[2]+1)
         elif node2=="L":
             weight = -math.log((p+p/eta)/(1-p-p/eta))*(node1[1]+1)/2
         elif node2=="R":
@@ -258,7 +263,10 @@ class Syndrome:
             zDistance =abs(node2[1]-node1[1])/2
             tDistance =abs(node2[0]-node1[0])
             xDistance =abs(node2[2]-node1[2]) 
-            weight = -(math.log((p+p/eta)/(1-p-p/eta))*(zDistance+tDistance)+math.log(2*p/eta/(1-2*p/eta))*xDistance)
+            if self.XZZX:
+                weight = -(math.log((p+p/eta)/(1-p-p/eta))*(zDistance+tDistance)+math.log(2*p/eta/(1-2*p/eta))*xDistance)
+            else:
+                weight = -(math.log((p+p/eta)/(1-p-p/eta))*(zDistance+tDistance+xDistance))
         return weight
 
     def MatchErrors(self):
