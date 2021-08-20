@@ -99,7 +99,6 @@ class Syndrome:
         """
         Initializes a Syndrome object
         dx and dz are the dimensions of the code
-        numMeasurements is the number of rounds of stabilizer measurements we are simulating
         """
         self.dx=dx #X-distance of the cluster
         self.dz=dz #Z-distance of the cluster
@@ -110,33 +109,34 @@ class Syndrome:
         self.errorChains = []
         self.decodedMatches = []
 
-    def PlotCluster(self,ax,errorColor="red"):
+    def PlotCluster(self,ax,plotScaffold=True):
         #Plot the cluster qubits
-        clusterColor,clusterLineWeight="grey",0
-        ZQubitSize,XQubitSize=0,0
-        for tIndex in range(self.dt):
+        if plotScaffold:
+            clusterColor,clusterLineWeight="grey",1
+            ZQubitSize,XQubitSize=100,10
+            for tIndex in range(self.dt):
+                for zIndex in range(2*self.dz-1):
+                    for xIndex in range(self.dx-zIndex%2):
+                        if zIndex%2==0:
+                            ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex,marker='o',color='k',s=XQubitSize)
+                            ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex+1/2,marker='$\circ$',color='k',s=ZQubitSize)
+                        else:
+                            ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex,marker='$\circ$',color='k',s=ZQubitSize)
+                            ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex+1/2,marker='o',color='k',s=XQubitSize)
+                    for xIndex in range(self.dx-(zIndex+1)%2):
+                        if zIndex%2==0:
+                            ax.scatter(zIndex/2,xIndex+((zIndex+1)%2)/2,tIndex,marker='o',color='k',s=XQubitSize)
+                        else:
+                            ax.scatter(zIndex/2,xIndex+((zIndex+1)%2)/2,tIndex+1/2,marker='o',color='k',s=XQubitSize)
+                for zIndex in range(2*self.dz-1):
+                    plt.plot([zIndex/2,zIndex/2],[0,self.dx-1],[tIndex+(zIndex%2)/2,tIndex+(zIndex%2)/2],color=clusterColor,lw=clusterLineWeight)
+                for xIndex in range(self.dx):
+                    plt.plot([0,self.dz-1],[xIndex,xIndex],[tIndex+1/2,tIndex+1/2],color=clusterColor,lw=clusterLineWeight)
+                    if xIndex<self.dx-1:
+                        plt.plot([0,self.dz-1],[xIndex+1/2,xIndex+1/2],[tIndex,tIndex],color=clusterColor,lw=clusterLineWeight)
             for zIndex in range(2*self.dz-1):
-                for xIndex in range(self.dx-zIndex%2):
-                    if zIndex%2==0:
-                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex,marker='o',color='k',s=XQubitSize)
-                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex+1/2,marker='$\circ$',color='k',s=ZQubitSize)
-                    else:
-                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex,marker='$\circ$',color='k',s=ZQubitSize)
-                        ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex+1/2,marker='o',color='k',s=XQubitSize)
-                for xIndex in range(self.dx-(zIndex+1)%2):
-                    if zIndex%2==0:
-                        ax.scatter(zIndex/2,xIndex+((zIndex+1)%2)/2,tIndex,marker='o',color='k',s=XQubitSize)
-                    else:
-                        ax.scatter(zIndex/2,xIndex+((zIndex+1)%2)/2,tIndex+1/2,marker='o',color='k',s=XQubitSize)
-            for zIndex in range(2*self.dz-1):
-                plt.plot([zIndex/2,zIndex/2],[0,self.dx-1],[tIndex+(zIndex%2)/2,tIndex+(zIndex%2)/2],color=clusterColor,lw=clusterLineWeight)
-            for xIndex in range(self.dx):
-                plt.plot([0,self.dz-1],[xIndex,xIndex],[tIndex+1/2,tIndex+1/2],color=clusterColor,lw=clusterLineWeight)
-                if xIndex<self.dx-1:
-                    plt.plot([0,self.dz-1],[xIndex+1/2,xIndex+1/2],[tIndex,tIndex],color=clusterColor,lw=clusterLineWeight)
-        for zIndex in range(2*self.dz-1):
-            for xIndex in range(self.dx-(zIndex)%2):
-                plt.plot([zIndex/2,zIndex/2],[xIndex+(zIndex%2)/2,xIndex+(zIndex%2)/2],[0,self.dt-1/2],color=clusterColor,lw=clusterLineWeight)
+                for xIndex in range(self.dx-(zIndex)%2):
+                    plt.plot([zIndex/2,zIndex/2],[xIndex+(zIndex%2)/2,xIndex+(zIndex%2)/2],[0,self.dt-1/2],color=clusterColor,lw=clusterLineWeight)
         #Plot the errors
         errorColor,errorWeight,matchColor='red',4,'blue'
         for point1,point2 in self.errorChains:
@@ -258,10 +258,7 @@ class Syndrome:
             zDistance =abs(node2[1]-node1[1])/2
             tDistance =abs(node2[0]-node1[0])
             xDistance =abs(node2[2]-node1[2]) 
-            if node1[1]%2==0:
-                weight = -(math.log(2*p/eta/(1-2*p/eta))*zDistance+math.log((p+p/eta)/(1-p-p/eta))*xDistance+math.log((p+p/eta)/(1-p-p/eta))*tDistance)
-            else :
-                weight = -(math.log((p+p/eta)/(1-p-p/eta))*zDistance+math.log(2*p/eta/(1-2*p/eta))*xDistance+math.log((p+p/eta)/(1-p-p/eta))*tDistance)
+            weight = -(math.log((p+p/eta)/(1-p-p/eta))*(zDistance+tDistance)+math.log(2*p/eta/(1-2*p/eta))*xDistance)
         return weight
 
     def MatchErrors(self):
@@ -353,9 +350,9 @@ class Syndrome:
                 
 
 
-        
+"""      
 dz,dx,dt=5,5,5
-eta=10
+eta=100
 p = .05
 for i in range(10):
     S = Syndrome(dt,dz,dx,p,eta)
@@ -369,8 +366,8 @@ for i in range(10):
     S.MatchErrors()
     fig = plt.figure()
     ax = fig.add_subplot(1,1,1,projection='3d')
-    S.PlotCluster(ax)
-    print(S.errorChains)
+    S.PlotCluster(ax,plotScaffold=False)
     S.AttemptCorrectionOfErrors()
     print("Z,X",S.FindLogicalErrors())
     plt.show()
+"""
