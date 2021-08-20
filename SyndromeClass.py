@@ -218,7 +218,7 @@ class Syndrome:
                 for xIndex in range(self.dx-1+zIndex%2):
                     #Error on ancilla qubit
                     error = random.choices(["I","X","Y","Z"],weights = [1-self.p*(1-2/self.eta),self.p/self.eta,self.p/self.eta,self.p])[0]
-                    if error == "Y" or error=="Z": #Generate a defect pair
+                    if error == "Z" or error=="Y": #Generate a defect pair
                         self.AddMatchedPair((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex))
                 for xIndex in range(self.dx-(zIndex)%2):
                     #Error on lower data qubit
