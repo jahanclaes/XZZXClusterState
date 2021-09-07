@@ -130,7 +130,6 @@ class Syndrome:
             print("Loaded")
         except:
             self.distanceDict = self.GenerateDistanceDict()
- 
 
     def PlotCluster(self,ax,plotScaffold=True):
         #Plot the cluster qubits
