@@ -95,15 +95,15 @@ X   X  1   4
 
 class Syndrome:
 
-    def __init__(self,dz,dx,numMeasurements,p,eta):
+    def __init__(self,dz,dx,dt,p,eta):
         """
         Initializes a Syndrome object
         dx and dz are the dimensions of the code
-        numMeasurements is the number of rounds of stabilizer measurements we are simulating
+        dt is the number of rounds of stabilizer measurements we are simulating
         """
         self.dx=dx
         self.dz=dz
-        self.numMeasurements = numMeasurements
+        self.dt = dt
         self.freePlaquettesStart = [(2*dz-1,xIndex) for xIndex in range(dx)]
         self.freePlaquettesEnd = [(2*dz-1,xIndex) for xIndex in range(dx)]
         self.correctMatches = {}
@@ -124,7 +124,7 @@ class Syndrome:
         self.CNOTErrors = {twoQubitErrors[i]:weightsCNOT[i] for i in range(16)}
         self.CZErrors = {twoQubitErrors[i]:weightsCZ[i] for i in range(16)}
         try:
-            saveFile = open("distanceDict_"+str(self.numMeasurements)+"_"+str(self.dz)+"_"+str(self.dx)+"_"+str(self.CNOTErrors["ZZ"])+".pk",'rb')
+            saveFile = open("distanceDict_"+str(self.dt)+"_"+str(self.dz)+"_"+str(self.dx)+"_"+str(self.CNOTErrors["ZZ"])+".pk",'rb')
             self.distanceDict = pickle.load(saveFile)
             saveFile.close()
             print("Loaded")
@@ -132,95 +132,56 @@ class Syndrome:
             self.distanceDict = self.GenerateDistanceDict()
  
 
-    def Plot3D(self,ax,parity=0):
-        """
-        Plots the even syndromes. Parity=0 plots only the even syndromes, parity=1 plots the odd.
-        Call twice with both parities on same axis object to plot all error syndromes
-        """
-        ax.set_xlabel("dz")
-        ax.set_ylabel("dx")
-        ax.set_zlabel("measurements")
-        #Plot the scaffolding
-        for plaquette in self.freePlaquettesStart:
-            if plaquette[1]==0:
-                verticies = [((plaquette[0]-1)/2,plaquette[1],0),((plaquette[0]+1)/2,plaquette[1],0),(plaquette[0]/2,plaquette[1]+.5,0)]
-            elif plaquette[1]==self.dx-1:                                                                                               
-                verticies = [((plaquette[0]-1)/2,plaquette[1],0),((plaquette[0]+1)/2,plaquette[1],0),(plaquette[0]/2,plaquette[1]-.5,0)]
-            else:
-                verticies = [((plaquette[0]-1)/2,plaquette[1],0),(plaquette[0]/2,plaquette[1]+.5,0),((plaquette[0]+1)/2,plaquette[1],0),(plaquette[0]/2,plaquette[1]-.5,0)]
-            poly = Poly3DCollection([verticies], alpha=0.2,color='blue')
-            ax.add_collection3d(poly)
-        for plaquette in self.freePlaquettesEnd:
-            if plaquette[1]==0:
-                verticies = [((plaquette[0]-1)/2,plaquette[1],self.numMeasurements-1),((plaquette[0]+1)/2,plaquette[1],self.numMeasurements-1),(plaquette[0]/2,plaquette[1]+.5,self.numMeasurements-1)]
-            elif plaquette[1]==self.dx-1:                                                                         
-                verticies = [((plaquette[0]-1)/2,plaquette[1],self.numMeasurements-1),((plaquette[0]+1)/2,plaquette[1],self.numMeasurements-1),(plaquette[0]/2,plaquette[1]-.5,self.numMeasurements-1)]
-            else:
-                verticies = [((plaquette[0]-1)/2,plaquette[1],self.numMeasurements-1),(plaquette[0]/2,plaquette[1]+.5,self.numMeasurements-1),((plaquette[0]+1)/2,plaquette[1],self.numMeasurements-1),(plaquette[0]/2,plaquette[1]-.5,self.numMeasurements-1)]
-            poly = Poly3DCollection([verticies], alpha=0.2,color='blue')
-            ax.add_collection3d(poly)
- 
-        for measurementIndex in range(1):#self.numMeasurements): 
-            for i in range(2*self.dz):
-                ax.plot3D([i,i+min(2*self.dz-i-1,self.dx-1)],[0,min(2*self.dz-i-1,self.dx-1)],[measurementIndex,measurementIndex],color='grey',lw=1,ls='dotted')
-                ax.plot3D([i,max(i-self.dx+1,0)],[0,min(i,self.dx-1)],[measurementIndex,measurementIndex],color='grey',lw=1,ls='dotted')
-                ax.plot3D([i,max(i-self.dx+1,0)],[self.dx-1,self.dx-1-min(i,self.dx-1)],[measurementIndex,measurementIndex],color='grey',lw=1,ls='dotted')
-                ax.plot3D([i,i+min(2*self.dz-i-1,self.dx-1)],[self.dx-1,self.dx-1-min(2*self.dz-i-1,self.dx-1)],[measurementIndex,measurementIndex],color='grey',lw=1,ls='dotted')
-        #Plot the known errors
-        for point1 in self.correctMatches.keys():
-            point2 =self.correctMatches[point1]
+    def PlotCluster(self,ax,plotScaffold=True):
+        #Plot the cluster qubits
+        if plotScaffold:
+            clusterColor,clusterLineWeight="grey",1
+            ZQubitSize,XQubitSize=100,10
+            for tIndex in range(self.dt):
+                for zIndex in range(2*self.dz-1):
+                    for xIndex in range(self.dx-zIndex%2):
+                        if zIndex%2==0:
+                            ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex,marker='o',color='k',s=XQubitSize)
+                            ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex+1/2,marker='$\circ$',color='k',s=ZQubitSize)
+                        else:
+                            ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex,marker='$\circ$',color='k',s=ZQubitSize)
+                            ax.scatter(zIndex/2,xIndex+(zIndex%2)/2,tIndex+1/2,marker='o',color='k',s=XQubitSize)
+                    for xIndex in range(self.dx-(zIndex+1)%2):
+                        if zIndex%2==0:
+                            ax.scatter(zIndex/2,xIndex+((zIndex+1)%2)/2,tIndex,marker='o',color='k',s=XQubitSize)
+                        else:
+                            ax.scatter(zIndex/2,xIndex+((zIndex+1)%2)/2,tIndex+1/2,marker='o',color='k',s=XQubitSize)
+                for zIndex in range(2*self.dz-1):
+                    plt.plot([zIndex/2,zIndex/2],[0,self.dx-1],[tIndex+(zIndex%2)/2,tIndex+(zIndex%2)/2],color=clusterColor,lw=clusterLineWeight)
+                for xIndex in range(self.dx):
+                    plt.plot([0,self.dz-1],[xIndex,xIndex],[tIndex+1/2,tIndex+1/2],color=clusterColor,lw=clusterLineWeight)
+                    if xIndex<self.dx-1:
+                        plt.plot([0,self.dz-1],[xIndex+1/2,xIndex+1/2],[tIndex,tIndex],color=clusterColor,lw=clusterLineWeight)
+            for zIndex in range(2*self.dz-1):
+                for xIndex in range(self.dx-(zIndex)%2):
+                    plt.plot([zIndex/2,zIndex/2],[xIndex+(zIndex%2)/2,xIndex+(zIndex%2)/2],[0,self.dt-1/2],color=clusterColor,lw=clusterLineWeight)
+        #Plot the errors
+        errorColor,errorWeight,matchColor='red',4,'blue'
+        for point1,point2 in self.errorChains:
             if type(point1)==str:
                 point1,point2=point2,point1
-            if type(point1)!=str and point1[1]%2==parity:
-                if type(point2)!=str:
-                    ax.plot3D([point1[1]/2,point2[1]/2],[point1[2]+1/2-(point1[1]%2)/2,point2[2]+1/2-(point2[1]%2)/2],[point1[0],point2[0]],color='navy',ls='dashed',lw=3)
-                elif point2=="L":
-                    ax.plot3D([point1[1]/2,-1/2],[point1[2]+1/2-(point1[1]%2)/2,point1[2]+1/2-(point1[1]%2)/2],[point1[0],point1[0]],color='navy',ls='dashed',lw=3)
-                    ax.scatter([-1/2],[point1[2]+1/2-(point1[1]%2)/2],[point1[0]],color='red')
-                elif point2=="R":
-                    ax.plot3D([point1[1]/2,2*self.dz-1/2],[point1[2]+1/2-(point1[1]%2)/2,point1[2]+1/2-(point1[1]%2)/2],[point1[0],point1[0]],color='navy',ls='dashed',lw=3)
-                    ax.scatter([2*self.dz-1/2],[point1[2]+1/2-(point1[1]%2)/2],[point1[0]],color='red')
-                elif point2=="T":
-                    ax.plot3D([point1[1]/2,point1[1]/2],[point1[2]+1/2-(point1[1]%2)/2,self.dx-1/2],[point1[0],point1[0]],color='navy',ls='dashed',lw=3)
-                    ax.scatter([point1[1]/2],[self.dx-1/2],[point1[0]],color='red')
-                elif point2=="B":
-                    ax.plot3D([point1[1]/2,point1[1]/2],[point1[2]+1/2-(point1[1]%2)/2,-1/2],[point1[0],point1[0]],color='navy',ls='dashed',lw=3)
-                    ax.scatter([point1[1]/2],[-1/2],[point1[0]],color='red')
-                elif point2=="S":
-                    ax.plot3D([point1[1]/2,self.dz-1/2],[point1[2]+1/2-(point1[1]%2)/2,point1[2]+1/2-(point1[1]%2)/2],[point1[0],0],color='navy',ls='dashed',lw=3)
-                    ax.scatter([self.dz-1/2],[point1[2]+1/2-(point1[1]%2)/2],[0],color='red')
-                elif point2=="E":
-                    ax.plot3D([point1[1]/2,self.dz-1/2],[point1[2]+1/2-(point1[1]%2)/2,point1[2]+1/2-(point1[1]%2)/2],[point1[0],self.numMeasurements-1],color='navy',ls='dashed',lw=3)
-                    ax.scatter([self.dz-1/2],[point1[2]+1/2-(point1[1]%2)/2],[self.numMeasurements-1],color='red')
+            if point2=="T" and type(point1)!=str:
+                point2 = (point1[0],point1[1],self.dx-1)
+            elif point2=="B" and type(point1)!=str:
+                point2 = (point1[0],point1[1],-1)
+            elif point2=="L" and type(point1)!=str:
+                point2 = (point1[0],-1,point1[2])
+            elif point2=="R" and type(point1)!=str:
+                point2 = (point1[0],2*self.dz-1,point1[2])
+            if type(point1)!=str:
+                if point1[1]%2==0:
+                    plt.plot([point1[1]/2,point2[1]/2],[point1[2]+((point1[1]+1)%2)/2,point2[2]+((point2[1]+1)%2)/2],[point1[0]+.5,point2[0]+.5],color=errorColor,lw=errorWeight)
+                else:
+                    plt.plot([point1[1]/2,point2[1]/2],[point1[2]+((point1[1]+1)%2)/2,point2[2]+((point2[1]+1)%2)/2],[point1[0]+1,point2[0]+1],color=errorColor,lw=errorWeight)
         for point1,point2 in self.decodedMatches:
-            if type(point1[0])==str and type(point2[0])==str:
-                point1,point2=point2[0],point1[0]
-            elif type(point1[0])==str:
-                point1,point2=point2,point1[0]
-            elif type(point2[0])==str:
-                point2=point2[0]
-            if type(point1)!=str and point1[1]%2==parity:
-                if type(point2)!=str:
-                    ax.plot3D([point1[1]/2,point2[1]/2],[point1[2]+1/2-(point1[1]%2)/2,point2[2]+1/2-(point2[1]%2)/2],[point1[0],point2[0]],color='green',ls='dashed',lw=3)
-                elif point2=="L":
-                    ax.plot3D([point1[1]/2,-1/2],[point1[2]+1/2-(point1[1]%2)/2,point1[2]+1/2-(point1[1]%2)/2],[point1[0],point1[0]],color='green',ls='dashed',lw=3)
-                    ax.scatter([-1/2],[point1[2]+1/2-(point1[1]%2)/2],[point1[0]],color='red')
-                elif point2=="R":
-                    ax.plot3D([point1[1]/2,2*self.dz-1/2],[point1[2]+1/2-(point1[1]%2)/2,point1[2]+1/2-(point1[1]%2)/2],[point1[0],point1[0]],color='green',ls='dashed',lw=3)
-                    ax.scatter([2*self.dz-1/2],[point1[2]+1/2-(point1[1]%2)/2],[point1[0]],color='red')
-                elif point2=="T":
-                    ax.plot3D([point1[1]/2,point1[1]/2],[point1[2]+1/2-(point1[1]%2)/2,self.dx-1/2],[point1[0],point1[0]],color='green',ls='dashed',lw=3)
-                    ax.scatter([point1[1]/2],[self.dx-1/2],[point1[0]],color='red')
-                elif point2=="B":
-                    ax.plot3D([point1[1]/2,point1[1]/2],[point1[2]+1/2-(point1[1]%2)/2,-1/2],[point1[0],point1[0]],color='green',ls='dashed',lw=3)
-                    ax.scatter([point1[1]/2],[-1/2],[point1[0]],color='red')
-                elif point2=="S":
-                    ax.plot3D([point1[1]/2,self.dz-1/2],[point1[2]+1/2-(point1[1]%2)/2,point1[2]+1/2-(point1[1]%2)/2],[point1[0],0],color='green',ls='dashed',lw=3)
-                    ax.scatter([self.dz-1/2],[point1[2]+1/2-(point1[1]%2)/2],[0],color='red')
-                elif point2=="E":
-                    ax.plot3D([point1[1]/2,self.dz-1/2],[point1[2]+1/2-(point1[1]%2)/2,point1[2]+1/2-(point1[1]%2)/2],[point1[0],self.numMeasurements-1],color='green',ls='dashed',lw=3)
-                    ax.scatter([self.dz-1/2],[point1[2]+1/2-(point1[1]%2)/2],[self.numMeasurements-1],color='red')
- 
+            if type(point1)==str:
+                point1,point2=point2,point1
+            if point2[0]=="T" and type(point1)!=str:
 
     def AddMatchedPair(self,point1,point2):
         if point1!=point2:
@@ -251,34 +212,34 @@ class Syndrome:
                 if type(key)!=str and type(self.correctMatches[key])!=str and (key[1]+self.correctMatches[key][1])%2!=0:
                     print("Error in parity",key,self.correctMatches[key])
 
-    def GenerateDefectsFromError(self,errorIndex,errorString,measurementIndex,zIndex,xIndex):
+    def GenerateDefectsFromError(self,errorIndex,errorString,tIndex,zIndex,xIndex):
         defectPairList=[]
         #Ancilla Preparation/Measurement errors
         if errorIndex==0:
             if errorString == "Z" or errorString=="Y":
-                defectPairList.append(((measurementIndex,zIndex,xIndex),(measurementIndex+1,zIndex,xIndex)))
+                defectPairList.append(((tIndex,zIndex,xIndex),(tIndex+1,zIndex,xIndex)))
         #Idle Data Qubit Errors
         elif errorIndex==1:
             if zIndex==1:
                 if errorString == "Z" or errorString=="Y":
-                    defectPairList.append(((measurementIndex+1,zIndex,xIndex),(measurementIndex+1,zIndex-2,xIndex)))
+                    defectPairList.append(((tIndex+1,zIndex,xIndex),(tIndex+1,zIndex-2,xIndex)))
                 if errorString == "X" or errorString=="Y":
-                    defectPairList.append(((measurementIndex+1,zIndex-1,xIndex-zIndex%2),(measurementIndex+1,zIndex-1,xIndex-zIndex%2+1)))
+                    defectPairList.append(((tIndex+1,zIndex-1,xIndex-zIndex%2),(tIndex+1,zIndex-1,xIndex-zIndex%2+1)))
             if zIndex==4*self.dz-3:
                 if errorString == "Z" or errorString=="Y":
-                    defectPairList.append(((measurementIndex,zIndex,xIndex),(measurementIndex+1,zIndex+2,xIndex)))
+                    defectPairList.append(((tIndex,zIndex,xIndex),(tIndex+1,zIndex+2,xIndex)))
                 if errorString == "X" or errorString=="Y":
-                    defectPairList.append(((measurementIndex,zIndex+1,xIndex-zIndex%2),(measurementIndex,zIndex+1,xIndex-zIndex%2+1)))
+                    defectPairList.append(((tIndex,zIndex+1,xIndex-zIndex%2),(tIndex,zIndex+1,xIndex-zIndex%2+1)))
             if xIndex==0 and zIndex%2==0:
                 if errorString == "Z" or errorString=="Y":
-                    defectPairList.append(((measurementIndex,zIndex-1,xIndex-zIndex%2),(measurementIndex+1,zIndex+1,xIndex-zIndex%2)))
+                    defectPairList.append(((tIndex,zIndex-1,xIndex-zIndex%2),(tIndex+1,zIndex+1,xIndex-zIndex%2)))
                 if errorString == "X" or errorString=="Y":
-                    defectPairList.append(((measurementIndex,zIndex,xIndex),(measurementIndex+1,zIndex,xIndex-1)))
+                    defectPairList.append(((tIndex,zIndex,xIndex),(tIndex+1,zIndex,xIndex-1)))
             if xIndex==self.dx-2 and zIndex%2==0:
                 if errorString == "Z" or errorString=="Y":
-                    defectPairList.append(((measurementIndex,zIndex-1,xIndex-zIndex%2+1),(measurementIndex+1,zIndex+1,xIndex-zIndex%2+1)))
+                    defectPairList.append(((tIndex,zIndex-1,xIndex-zIndex%2+1),(tIndex+1,zIndex+1,xIndex-zIndex%2+1)))
                 if errorString == "X" or errorString=="Y":
-                    defectPairList.append(((measurementIndex+1,zIndex,xIndex),(measurementIndex+1,zIndex,xIndex+1)))
+                    defectPairList.append(((tIndex+1,zIndex,xIndex),(tIndex+1,zIndex,xIndex+1)))
         #Idle Ancilla Qubit Errors
         elif errorIndex==2:
             if zIndex==0:
@@ -287,58 +248,58 @@ class Syndrome:
                 pass # Can just measure the state one timestep earlier
             if xIndex==0 and zIndex%2==1:
                 if errorString == "X" or errorString=="Y":
-                    defectPairList.append(((measurementIndex+1,zIndex+1,xIndex-zIndex%2+1),(measurementIndex+1,zIndex+1,xIndex-zIndex%2)))
+                    defectPairList.append(((tIndex+1,zIndex+1,xIndex-zIndex%2+1),(tIndex+1,zIndex+1,xIndex-zIndex%2)))
                 if errorString == "Z" or errorString=="Y":
-                    defectPairList.append(((measurementIndex,zIndex,xIndex),(measurementIndex+1,zIndex,xIndex)))
+                    defectPairList.append(((tIndex,zIndex,xIndex),(tIndex+1,zIndex,xIndex)))
             if xIndex==self.dx-1 and zIndex%2==1:
                 if errorString == "X" or errorString=="Y":
-                    defectPairList.append(((measurementIndex,zIndex-1,xIndex-zIndex%2),(measurementIndex+1,zIndex+1,xIndex-zIndex%2+1)))
+                    defectPairList.append(((tIndex,zIndex-1,xIndex-zIndex%2),(tIndex+1,zIndex+1,xIndex-zIndex%2+1)))
                 if errorString == "Z" or errorString=="Y":
-                    defectPairList.append(((measurementIndex,zIndex,xIndex),(measurementIndex+1,zIndex,xIndex)))
+                    defectPairList.append(((tIndex,zIndex,xIndex),(tIndex+1,zIndex,xIndex)))
         #First 2-qubit (CNOT) Error
         elif errorIndex==3:
             if zIndex>0:
                 if errorString[0]=="X" or errorString[0]=="Y": #Data (Target) qubit error
-                    defectPairList.append(((measurementIndex,zIndex-1,xIndex+1-zIndex%2),(measurementIndex,zIndex-1,xIndex-zIndex%2)))
+                    defectPairList.append(((tIndex,zIndex-1,xIndex+1-zIndex%2),(tIndex,zIndex-1,xIndex-zIndex%2)))
                 if errorString[0]=="Z" or errorString[0]=="Y": #Data (Target) qubit error
-                    defectPairList.append(((measurementIndex,zIndex-2,xIndex),(measurementIndex+1,zIndex,xIndex)))
+                    defectPairList.append(((tIndex,zIndex-2,xIndex),(tIndex+1,zIndex,xIndex)))
                 if errorString[1]=="X" or errorString[1]=="Y": #Ancilla (Control) qubit error
-                    defectPairList.append(((measurementIndex,zIndex-1,xIndex),(measurementIndex,zIndex-1,xIndex+1-2*(zIndex%2))))
+                    defectPairList.append(((tIndex,zIndex-1,xIndex),(tIndex,zIndex-1,xIndex+1-2*(zIndex%2))))
                 if errorString[1]=="Z" or errorString[1]=="Y": #Ancilla (Control) qubit error
-                    defectPairList.append(((measurementIndex,zIndex,xIndex),(measurementIndex+1,zIndex,xIndex)))
+                    defectPairList.append(((tIndex,zIndex,xIndex),(tIndex+1,zIndex,xIndex)))
         #Second 2-qubit (CZ) Error
         elif errorIndex==4:
             if xIndex<self.dx-1:
                 if errorString[0]=="X" or errorString[0]=="Y": #Data (Target) qubit error
-                    defectPairList.append(((measurementIndex,zIndex,xIndex+1),(measurementIndex+1,zIndex,xIndex)))
+                    defectPairList.append(((tIndex,zIndex,xIndex+1),(tIndex+1,zIndex,xIndex)))
                 if errorString[0]=="Z" or errorString[0]=="Y": #Data (Target) qubit error
-                    defectPairList.append(((measurementIndex,zIndex-1,xIndex-zIndex%2+1),(measurementIndex+1,zIndex+1,xIndex-zIndex%2+1)))
+                    defectPairList.append(((tIndex,zIndex-1,xIndex-zIndex%2+1),(tIndex+1,zIndex+1,xIndex-zIndex%2+1)))
                 if errorString[1]=="X" or errorString[1]=="Y": #Ancilla (Control) qubit error
-                    defectPairList.append(((measurementIndex,zIndex-1,xIndex-zIndex%2),(measurementIndex+1,zIndex+1,xIndex-zIndex%2+1)))
+                    defectPairList.append(((tIndex,zIndex-1,xIndex-zIndex%2),(tIndex+1,zIndex+1,xIndex-zIndex%2+1)))
                 if errorString[1]=="Z" or errorString[1]=="Y": #Ancilla (Control) qubit error
-                    defectPairList.append(((measurementIndex,zIndex,xIndex),(measurementIndex+1,zIndex,xIndex)))
+                    defectPairList.append(((tIndex,zIndex,xIndex),(tIndex+1,zIndex,xIndex)))
         #Third 2-qubit (CZ) Error
         elif errorIndex==5:
             if xIndex>zIndex%2-1:
                 if errorString[0]=="X" or errorString[0]=="Y": #Data (Target) qubit error
-                    defectPairList.append(((measurementIndex+1,zIndex,xIndex),(measurementIndex+1,zIndex,xIndex-1)))
+                    defectPairList.append(((tIndex+1,zIndex,xIndex),(tIndex+1,zIndex,xIndex-1)))
                 if errorString[0]=="Z" or errorString[0]=="Y": #Data (Target) qubit error
-                    defectPairList.append(((measurementIndex,zIndex-1,xIndex-zIndex%2),(measurementIndex+1,zIndex+1,xIndex-zIndex%2)))
+                    defectPairList.append(((tIndex,zIndex-1,xIndex-zIndex%2),(tIndex+1,zIndex+1,xIndex-zIndex%2)))
                 if errorString[1]=="X" or errorString[1]=="Y": #Ancilla (Control) qubit error
-                    defectPairList.append(((measurementIndex+1,zIndex+1,xIndex-zIndex%2+1),(measurementIndex+1,zIndex+1,xIndex-zIndex%2)))
+                    defectPairList.append(((tIndex+1,zIndex+1,xIndex-zIndex%2+1),(tIndex+1,zIndex+1,xIndex-zIndex%2)))
                 if errorString[1]=="Z" or errorString[1]=="Y": #Ancilla (Control) qubit error
-                    defectPairList.append(((measurementIndex,zIndex,xIndex),(measurementIndex+1,zIndex,xIndex)))
+                    defectPairList.append(((tIndex,zIndex,xIndex),(tIndex+1,zIndex,xIndex)))
         #Fourth 2-qubit (CNOT) Error
         elif errorIndex==6:
             if zIndex<4*self.dz-2:
                 if errorString[0]=="X" or errorString[0]=="Y": #Data (Target) qubit error
-                    defectPairList.append(((measurementIndex+1,zIndex+1,xIndex-zIndex%2),(measurementIndex+1,zIndex+1,xIndex-zIndex%2+1)))
+                    defectPairList.append(((tIndex+1,zIndex+1,xIndex-zIndex%2),(tIndex+1,zIndex+1,xIndex-zIndex%2+1)))
                 if errorString[0]=="Z" or errorString[0]=="Y": #Data (Target) qubit error
-                    defectPairList.append(((measurementIndex+1,zIndex,xIndex),(measurementIndex+1,zIndex+2,xIndex)))
+                    defectPairList.append(((tIndex+1,zIndex,xIndex),(tIndex+1,zIndex+2,xIndex)))
                 if errorString[1]=="X" or errorString[1]=="Y": #Ancilla (Control) qubit error
                     pass
                 if errorString[1]=="Z" or errorString[1]=="Y": #Ancilla (Control) qubit error
-                    defectPairList.append(((measurementIndex,zIndex,xIndex),(measurementIndex+1,zIndex,xIndex)))
+                    defectPairList.append(((tIndex,zIndex,xIndex),(tIndex+1,zIndex,xIndex)))
         for index in range(len(defectPairList)):
             point1,point2 = defectPairList[index]
             if point1[1]==-1:
@@ -351,7 +312,7 @@ class Syndrome:
                 point1="T"
             elif point1[0]==0 and (point1[1],point1[2]) in self.freePlaquettesStart:
                 point1="S"
-            elif point1[0]==self.numMeasurements-1 and (point1[1],point1[2]) in self.freePlaquettesEnd:
+            elif point1[0]==self.dt-1 and (point1[1],point1[2]) in self.freePlaquettesEnd:
                 point1="E"
             if point2[1]==-1:
                 point2="L"
@@ -363,7 +324,7 @@ class Syndrome:
                 point2="T"
             elif point2[0]==0 and (point2[1],point2[2]) in self.freePlaquettesStart:
                 point2="S"
-            elif point2[0]==self.numMeasurements-1 and (point2[1],point2[2]) in self.freePlaquettesEnd:
+            elif point2[0]==self.dt-1 and (point2[1],point2[2]) in self.freePlaquettesEnd:
                 point2="E"
             defectPairList[index]=(point1,point2)
         return defectPairList
@@ -373,31 +334,31 @@ class Syndrome:
         Generate defects according to some error model.
         Populates self.correctMatches
         """
-        for measurementIndex in range(self.numMeasurements-1):
+        for tIndex in range(self.dt-1):
             for zIndex in range(4*self.dz-1):
                 for xIndex in range(self.dx-1+zIndex%2):
                     #Ancilla Preparation/Measurement errors
                     defectPairList = []
                     ancillaError = random.choices(list(self.SPAMErrors.keys()),weights=[self.SPAMErrors[key] for key in self.SPAMErrors.keys()])[0]
-                    defectPairList = defectPairList+self.GenerateDefectsFromError(0,ancillaError,measurementIndex,zIndex,xIndex)
+                    defectPairList = defectPairList+self.GenerateDefectsFromError(0,ancillaError,tIndex,zIndex,xIndex)
                     #Idle Data Qubit Errors
                     idleError = random.choices(list(self.idleErrors.keys()),weights = [self.idleErrors[key] for key in self.idleErrors.keys()])[0]
-                    defectPairList = defectPairList+self.GenerateDefectsFromError(1,idleError,measurementIndex,zIndex,xIndex)
+                    defectPairList = defectPairList+self.GenerateDefectsFromError(1,idleError,tIndex,zIndex,xIndex)
                     #Idle Ancilla Qubit Errors
                     idleError = random.choices(list(self.idleErrors.keys()),weights = [self.idleErrors[key] for key in self.idleErrors.keys()])[0]
-                    defectPairList = defectPairList+self.GenerateDefectsFromError(2,idleError,measurementIndex,zIndex,xIndex)
+                    defectPairList = defectPairList+self.GenerateDefectsFromError(2,idleError,tIndex,zIndex,xIndex)
                     #First 2-qubit (CNOT) Error
                     gateError = random.choices(list(self.CNOTErrors.keys()),weights = [self.CNOTErrors[key] for key in self.CNOTErrors.keys()])[0]
-                    defectPairList = defectPairList+self.GenerateDefectsFromError(3,gateError,measurementIndex,zIndex,xIndex)
+                    defectPairList = defectPairList+self.GenerateDefectsFromError(3,gateError,tIndex,zIndex,xIndex)
                     #Second 2-qubit (CZ) Error
                     gateError = random.choices(list(self.CZErrors.keys()),weights = [self.CZErrors[key] for key in self.CZErrors.keys()])[0]
-                    defectPairList = defectPairList+self.GenerateDefectsFromError(4,gateError,measurementIndex,zIndex,xIndex)
+                    defectPairList = defectPairList+self.GenerateDefectsFromError(4,gateError,tIndex,zIndex,xIndex)
                     #Third 2-qubit (CZ) Error
                     gateError = random.choices(list(self.CZErrors.keys()),weights = [self.CZErrors[key] for key in self.CZErrors.keys()])[0]
-                    defectPairList = defectPairList+self.GenerateDefectsFromError(5,gateError,measurementIndex,zIndex,xIndex)
+                    defectPairList = defectPairList+self.GenerateDefectsFromError(5,gateError,tIndex,zIndex,xIndex)
                     #Fourth 2-qubit (CNOT) Error
                     gateError = random.choices(list(self.CNOTErrors.keys()),weights = [self.CNOTErrors[key] for key in self.CNOTErrors.keys()])[0]
-                    defectPairList = defectPairList+self.GenerateDefectsFromError(6,gateError,measurementIndex,zIndex,xIndex)
+                    defectPairList = defectPairList+self.GenerateDefectsFromError(6,gateError,tIndex,zIndex,xIndex)
                     for defect1,defect2 in defectPairList:
                         self.AddMatchedPair(defect1,defect2)
                         
@@ -416,49 +377,49 @@ class Syndrome:
                 except:
                     distanceGraph.add_edge(defect1,defect2,weight=probability)
 
-        for measurementIndex in range(self.numMeasurements-1):
+        for tIndex in range(self.dt-1):
             for zIndex in range(4*self.dz-1):
                 for xIndex in range(self.dx-1+zIndex%2):
                     #Ancilla Preparation/Measurement errors
                     for ancillaError in self.SPAMErrors:
-                        defectPairList = self.GenerateDefectsFromError(0,ancillaError,measurementIndex,zIndex,xIndex)
+                        defectPairList = self.GenerateDefectsFromError(0,ancillaError,tIndex,zIndex,xIndex)
                         if self.SPAMErrors[ancillaError]>0:
                             probability = self.SPAMErrors[ancillaError]
                             AddToNodeGraph(probability,defectPairList)
                     #Idle Data Qubit Errors
                     for idleError in self.idleErrors:
-                        defectPairList = self.GenerateDefectsFromError(1,idleError,measurementIndex,zIndex,xIndex)
+                        defectPairList = self.GenerateDefectsFromError(1,idleError,tIndex,zIndex,xIndex)
                         probability = (self.idleErrors[idleError])
                         AddToNodeGraph(probability,defectPairList)
                     #Idle Ancilla Qubit Errors
                     for idleError in self.idleErrors:
-                        defectPairList = self.GenerateDefectsFromError(2,idleError,measurementIndex,zIndex,xIndex)
+                        defectPairList = self.GenerateDefectsFromError(2,idleError,tIndex,zIndex,xIndex)
                         probability = (self.idleErrors[idleError])
                         AddToNodeGraph(probability,defectPairList)
                     #First 2-qubit (CNOT) Error
                     for gateError in self.CNOTErrors:
-                        defectPairList = self.GenerateDefectsFromError(3,gateError,measurementIndex,zIndex,xIndex)
+                        defectPairList = self.GenerateDefectsFromError(3,gateError,tIndex,zIndex,xIndex)
                         probability = (self.CNOTErrors[gateError])
                         AddToNodeGraph(probability,defectPairList)
                     #Second 2-qubit (CZ) Error
                     for gateError in self.CZErrors:
-                        defectPairList = self.GenerateDefectsFromError(4,gateError,measurementIndex,zIndex,xIndex)
+                        defectPairList = self.GenerateDefectsFromError(4,gateError,tIndex,zIndex,xIndex)
                         probability = (self.CZErrors[gateError])
                         AddToNodeGraph(probability,defectPairList)
                     #Third 2-qubit (CZ) Error
                     for gateError in self.CZErrors:
-                        defectPairList = self.GenerateDefectsFromError(5,gateError,measurementIndex,zIndex,xIndex)
+                        defectPairList = self.GenerateDefectsFromError(5,gateError,tIndex,zIndex,xIndex)
                         probability = (self.CZErrors[gateError])
                         AddToNodeGraph(probability,defectPairList)
                     #Fourth 2-qubit (CNOT) Error
                     for gateError in self.CNOTErrors:
-                        defectPairList = self.GenerateDefectsFromError(6,gateError,measurementIndex,zIndex,xIndex)
+                        defectPairList = self.GenerateDefectsFromError(6,gateError,tIndex,zIndex,xIndex)
                         probability = self.CNOTErrors[gateError]
                         AddToNodeGraph(probability,defectPairList)
         for defect1,defect2 in distanceGraph.edges():
             distanceGraph[defect1][defect2]['weight']=-math.log(distanceGraph[defect1][defect2]['weight'])
         distanceDict = dict(nx.all_pairs_dijkstra_path_length(distanceGraph))
-        saveFile = open("distanceDict_"+str(self.numMeasurements)+"_"+str(self.dz)+"_"+str(self.dx)+"_"+str(self.CNOTErrors["ZZ"])+".pk",'wb')
+        saveFile = open("distanceDict_"+str(self.dt)+"_"+str(self.dz)+"_"+str(self.dx)+"_"+str(self.CNOTErrors["ZZ"])+".pk",'wb')
         pickle.dump(distanceDict,saveFile)
         saveFile.close()
         return distanceDict
@@ -584,15 +545,14 @@ class Syndrome:
 
 
         
-"""
 dz,dx=2,3
-numMeasurements=5
+dt=5
 eta=1
 p = .005
-S = Syndrome(dz,dx,numMeasurements,p,eta)
+S = Syndrome(dz,dx,dt,p,eta)
 S.GenerateDistanceDict()
 for i in range(100):
-    S = Syndrome(dz,dx,numMeasurements,p,eta)
+    S = Syndrome(dz,dx,dt,p,eta)
     S.GenerateErrors()
     saveFile=open("saveFile.pk",'wb')
     pickle.dump(S,saveFile)
@@ -609,4 +569,3 @@ for i in range(100):
     print(S.correctMatches)
     print("Z,Z1,Z2,X,T",S.FindLogicalErrors())
     plt.show()
-""" 
