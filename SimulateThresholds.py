@@ -7,18 +7,14 @@ import pickle
 import sys
 
 
-eta,pEst,d = int(sys.argv[1]),float(sys.argv[2]),int(sys.argv[3])
-XZZX=True
-if len(sys.argv)==5:
-    XZZX = False
+eta,pEst,dx,shapeAspectRatio,timeAspectRatio = int(sys.argv[1]),float(sys.argv[2]),int(sys.argv[3]),int(sys.argv[4]),float(sys.argv[5])
 
-numSamples=100
-pList = np.linspace(0.0001,2*pEst,15)
+numSamples=10
+pList = np.linspace(pEst-.009,pEst+.011,15)
+dz = dx*shapeAspectRatio
+numMeasurements = int(dx*timeAspectRatio)
 try:
-    if XZZX:
-        saveFile=open("simulationData3D_"+str(eta)+"_"+str(d)+".pk",'rb')
-    else:
-        saveFile=open("simulationData3D_RHG_"+str(eta)+"_"+str(d)+".pk",'rb')
+    saveFile=open("simulationData3D_"+str(eta)+"_"+str(dz)+".pk",'rb')
     logicalErrorCounts,totalCounts,pList=pickle.load(saveFile)
     saveFile.close()
     print("Loaded")
@@ -30,30 +26,18 @@ for p in pList:
     start=time.time()
     for i in range(numSamples):
         print(p,i)
-        if eta==10000 and XZZX:
-            S = SC.Syndrome(3*d,3*d,1,p,eta,XZZX=XZZX)
-        elif eta==10000 and not XZZX:
-            S = SC.Syndrome(d,d,d,p,eta,XZZX=XZZX)
-        elif eta==100 and XZZX:
-            S = SC.Syndrome(3*d,3*d,d,p,eta,XZZX=XZZX)
-        elif eta==100 and not XZZX:
-            S = SC.Syndrome(d,d,d,p,eta,XZZX=XZZX)
-        else:
-            S = SC.Syndrome(d,d,d,p,eta,XZZX=XZZX)
+        S = SC.Syndrome(dz,dx,numMeasurements,p/16,eta)
         S.GenerateErrors()
         S.MatchErrors()
         S.AttemptCorrectionOfErrors()
-        ZLogicalError,XLogicallError=S.FindLogicalErrors()
-        if XLogicallError or ZLogicalError:
+        ZLogicalError,Z1LogicalError,Z2LogicalError,XLogicallError,TimeLogicalError=S.FindLogicalErrors()
+        if TimeLogicalError or XLogicallError or ZLogicalError or Z1LogicalError or Z2LogicalError:
             logicalErrorCounts[count]+=1
         totalCounts[count]+=1
     count+=1
     end=time.time()
     print(end-start)
-if XZZX:
-    saveFile=open("simulationData3D_"+str(eta)+"_"+str(d)+".pk",'wb')
-else:
-    saveFile=open("simulationData3D_RHG_"+str(eta)+"_"+str(d)+".pk",'wb')
+saveFile=open("simulationData3D_"+str(eta)+"_"+str(dz)+".pk",'wb')
 pickle.dump((logicalErrorCounts,totalCounts,pList),saveFile)
 saveFile.close()
 
