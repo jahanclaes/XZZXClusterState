@@ -95,7 +95,7 @@ X   X  1   4
 
 class Syndrome:
 
-    def __init__(self,dz,dx,dt,p,eta):
+    def __init__(self,dz,dx,dt,p,eta,clusterType='XZZX'):
         """
         Initializes a Syndrome object
         dx and dz are the dimensions of the code
@@ -104,6 +104,7 @@ class Syndrome:
         self.dx=dx
         self.dz=dz
         self.dt = dt
+        self.clusterType=clusterType
         self.correctMatches = {}
         self.decodedMatches = {}
         pIdle=p
@@ -234,10 +235,14 @@ class Syndrome:
         if errorIndex==1: # Layer1 data qubit Preparation/Measurement errors
             if zIndex%2==0 and (errorString == "Z" or errorString=="Y"):
                 defectPairList.append(((tIndex-1,zIndex+1,xIndex),(tIndex-1,zIndex-1,xIndex)))
-            if zIndex%2==1 and (errorString == "X" or errorString=="Y"):
+            if zIndex%2==1 and (errorString == "X" or errorString=="Y") and self.clusterType=="XZZX":
+                defectPairList.append(((tIndex-1,zIndex,xIndex+1),(tIndex-1,zIndex,xIndex)))
+            if zIndex%2==1 and (errorString == "Z" or errorString=="Y") and self.clusterType=="RHG":
                 defectPairList.append(((tIndex-1,zIndex,xIndex+1),(tIndex-1,zIndex,xIndex)))
         if errorIndex==2: # Layer2 data qubit Preparation/Measurement errors
-            if zIndex%2==0 and (errorString == "X" or errorString=="Y"):
+            if zIndex%2==0 and (errorString == "X" or errorString=="Y") and self.clusterType=="XZZX":
+                defectPairList.append(((tIndex,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
+            if zIndex%2==0 and (errorString == "Z" or errorString=="Y") and self.clusterType=="RHG":
                 defectPairList.append(((tIndex,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
             if zIndex%2==1 and (errorString == "Z" or errorString=="Y"):
                 defectPairList.append(((tIndex,zIndex+1,xIndex),(tIndex,zIndex-1,xIndex)))
