@@ -332,13 +332,41 @@ class Syndrome:
                         probability = self.SPAMErrors[layerTwoDataError]
                         if probability>0:
                             AddToNodeGraph(probability,defectPairList)
-        point1,point2=(4,9,1),"R"
         for defect1,defect2 in distanceGraph.edges():
-            distanceGraph[defect1][defect2]['weight']=-math.log(distanceGraph[defect1][defect2]['weight'])
+            distanceGraph[defect1][defect2]['weight']=-math.log(distanceGraph[defect1][defect2]['weight']/(1-distanceGraph[defect1][defect2]['weight']))
+        point1,point2=(7,5,2),(7,9,2)
+        shortestPath = nx.shortest_path(distanceGraph,point1,point2,weight='weight')
+        for i in range(len(shortestPath)-1):
+            print(shortestPath[i],shortestPath[i+1],distanceGraph[shortestPath[i]][shortestPath[i+1]])
         distanceDict = dict(nx.all_pairs_dijkstra_path_length(distanceGraph))
-        print(nx.shortest_path(distanceGraph,point1,point2,weight='weight'),distanceDict[point1][point2])
         return distanceDict
  
+    def ComputeWeight(self,node1,node2):
+        p=self.SPAMErrors["Z"]
+        eta=p/self.SPAMErrors["X"]
+        if node2=="T" and self.clusterType=="XZZX":
+            weight = -math.log(2*p/eta/(1-2*p/eta))*(self.dx-1-node1[2])
+        elif node2=="T" and not self.clusterType=="XZZX":
+            weight = -math.log((p+p/eta)/(1-p-p/eta))*(self.dx-1-node1[2])
+        elif node2=="B" and self.clusterType=="XZZX":
+            weight = -math.log(2*p/eta/(1-2*p/eta))*(node1[2]+1)
+        elif node2=="B" and not self.clusterType=="XZZX":
+            weight = -math.log((p+p/eta)/(1-p-p/eta))*(node1[2]+1)
+        elif node2=="L":
+            weight = -math.log((p+p/eta)/(1-p-p/eta))*(node1[1]+1)/2
+        elif node2=="R":
+            weight = -math.log((p+p/eta)/(1-p-p/eta))*(2*self.dz-node1[1]-1)/2
+        else:
+            zDistance =abs(node2[1]-node1[1])/2
+            tDistance =abs(node2[0]-node1[0])
+            xDistance =abs(node2[2]-node1[2]) 
+            if self.clusterType=="XZZX":
+                weight = -(math.log((p+p/eta)/(1-p-p/eta))*(zDistance+tDistance)+math.log(2*p/eta/(1-2*p/eta))*xDistance)
+            else:
+                weight = -(math.log((p+p/eta)/(1-p-p/eta))*(zDistance+tDistance+xDistance))
+        return weight
+
+
     def MatchErrors(self):
         """
         Call after GenerateErrors().
@@ -432,20 +460,28 @@ class Syndrome:
 
 
         
-"""
-dz,dx=10,4
-dt=10
-eta=10000
-p = .04
+dz,dx=8,8
+dt=8
+eta=1
+p = .01
 S = Syndrome(dz,dx,dt,p,eta)
 S.GenerateDistanceDict()
+"""
+for point1 in S.distanceDict:
+    for point2 in S.distanceDict[point1]:
+        if type(point1)==str:
+            point1,point2=point2,point1
+        if type(point1)!=str:
+            dictDistance,formulaDistance=S.distanceDict[point1][point2],S.ComputeWeight(point1,point2)
+            if formulaDistance<dictDistance and point1[1]!=0 and point1[1]!=1 and point1[1]!=2*dz-2 and point1[1]!=2*dz-3 and point1[2]!=0 and point1[2]!=dx-1:
+                print(point1,point2,formulaDistance,dictDistance)
+
 for i in range(100):
     S.Clear()
     S.GenerateErrors()
     saveFile=open("saveFile.pk",'wb')
     pickle.dump(S,saveFile)
     saveFile.close()
-    print(S.correctMatches)
     #saveFile = open("saveFile.pk",'rb')
     #S=pickle.load(saveFile)
     #saveFile.close()
