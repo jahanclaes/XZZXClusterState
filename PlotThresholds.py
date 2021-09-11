@@ -6,22 +6,27 @@ import numpy as np
 import pickle
 import sys
 
-eta = int(sys.argv[1])
+eta,clusterType = int(sys.argv[1]),sys.argv[2]
 
-if eta==1:
-    dzList = list(range(2,9))+[10,12]
-if eta==10:
-    dzList = [2*i for i in range(2,11)]
-if eta==100:
-    dzList = [5*i for i in range(2,6)]
-
-
+dzList = range(1,100)
 for dz in dzList:
-    saveFile=open("simulationData3D_"+str(eta)+"_"+str(dz)+".pk",'rb')
-    logicalErrorCounts,totalCounts,pList=pickle.load(saveFile)
-    print(logicalErrorCounts,totalCounts)
-    saveFile.close()
-    errorProbList = [logicalErrorCounts[i]/totalCounts[i] for i in range(len(pList))]
-    plt.errorbar(pList,errorProbList,[math.sqrt(errorProbList[i]-errorProbList[i]**2)/math.sqrt(totalCounts[i]) for i in range(len(pList))],label=dz)
+    try:
+        saveFile=open("simulationData3D_"+str(eta)+"_"+str(dz)+"_"+clusterType+".pk",'rb')
+        logicalErrorCounts,totalCounts,pList=pickle.load(saveFile)
+        print(logicalErrorCounts,totalCounts)
+        saveFile.close()
+        errorProbList = [sum(logicalErrorCounts[i])/totalCounts[i] for i in range(len(pList))]
+        errorXProbList = [logicalErrorCounts[i][0]/totalCounts[i] for i in range(len(pList))]
+        errorZProbList = [logicalErrorCounts[i][1]/totalCounts[i] for i in range(len(pList))]
+        if totalCounts[0]>200:
+            #plt.errorbar(pList,errorProbList,[math.sqrt(errorProbList[i]-errorProbList[i]**2)/math.sqrt(totalCounts[i]) for i in range(len(pList))],label=dz)
+            plt.subplot(211)
+            plt.title("X")
+            plt.errorbar(pList,errorXProbList,[math.sqrt(errorXProbList[i]-errorXProbList[i]**2)/math.sqrt(totalCounts[i]) for i in range(len(pList))],label=dz)
+            plt.subplot(212)
+            plt.title("Z")
+            plt.errorbar(pList,errorZProbList,[math.sqrt(errorZProbList[i]-errorZProbList[i]**2)/math.sqrt(totalCounts[i]) for i in range(len(pList))],label=dz)
+    except:
+        pass
 plt.legend()
 plt.show()

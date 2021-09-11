@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('TkAgg')
 import numpy as np
 import networkx as nx
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
@@ -114,7 +116,7 @@ class Syndrome:
         pCZ=p
         singleQubitErrors = ["I","Z","X","Y"]
         twoQubitErrors =["II","IZ","ZI","ZZ","IX","IY","XI","XX","XY","XZ","YI","YX","YY","YZ","ZX","ZY"] 
-        weightsSPAM = [1-(pMeasure+pPrep)*(1+1/eta),pMeasure+pPrep,(pMeasure+pPrep)/eta,0]
+        weightsSPAM = [1-(pMeasure+pPrep)*(1+2/eta),pMeasure+pPrep,(pMeasure+pPrep)/eta,(pMeasure+pPrep)/eta]
         weightsIdle = [0]*4 
         weightsCNOT = [0]*16
         weightsCZ = [0]*16
@@ -123,12 +125,19 @@ class Syndrome:
         self.CNOTErrors = {twoQubitErrors[i]:weightsCNOT[i] for i in range(16)}
         self.CZErrors = {twoQubitErrors[i]:weightsCZ[i] for i in range(16)}
         try:
-            saveFile = open("distanceDict_"+str(self.dt)+"_"+str(self.dz)+"_"+str(self.dx)+"_"+str(self.CNOTErrors["ZZ"])+".pk",'rb')
+            saveFile = open("distanceDict_"+str(self.dt)+"_"+str(self.dz)+"_"+str(self.dx)+"_"+str(p)+"_"+str(eta)+"_"+clusterType+".pk",'rb')
             self.distanceDict = pickle.load(saveFile)
             saveFile.close()
             print("Loaded")
         except:
             self.distanceDict = self.GenerateDistanceDict()
+            saveFile = open("distanceDict_"+str(self.dt)+"_"+str(self.dz)+"_"+str(self.dx)+"_"+str(p)+"_"+str(eta)+"_"+clusterType+".pk",'wb')
+            pickle.dump(self.distanceDict,saveFile)
+            saveFile.close()
+    
+    def Clear(self):
+        self.correctMatches = {}
+        self.decodedMatches = {}
 
     def PlotCluster(self,ax,plotScaffold=True):
         #Plot the cluster qubits
@@ -160,7 +169,8 @@ class Syndrome:
                     plt.plot([zIndex/2,zIndex/2],[xIndex+(zIndex%2)/2,xIndex+(zIndex%2)/2],[0,self.dt-1/2],color=clusterColor,lw=clusterLineWeight)
         #Plot the errors
         errorColor,errorWeight,matchColor='red',4,'blue'
-        for point1,point2 in self.correctMatches:
+        for key in self.correctMatches:
+            point1,point2 = key, self.correctMatches[key]
             if type(point1)==str:
                 point1,point2=point2,point1
             if point2=="T" and type(point1)!=str:
@@ -177,17 +187,17 @@ class Syndrome:
                 else:
                     plt.plot([point1[1]/2,point2[1]/2],[point1[2]+((point1[1]+1)%2)/2,point2[2]+((point2[1]+1)%2)/2],[point1[0]+1,point2[0]+1],color=errorColor,lw=errorWeight)
         for point1,point2 in self.decodedMatches:
-            if type(point1)==str:
+            if type(point1[0])==str:
                 point1,point2=point2,point1
-            if point2[0]=="T" and type(point1)!=str:
+            if point2[0]=="T" and type(point1[0])!=str:
                 point2 = (point1[0],point1[1],self.dx-1)
-            elif point2[0]=="B" and type(point1)!=str:
+            elif point2[0]=="B" and type(point1[0])!=str:
                 point2 = (point1[0],point1[1],-1)
-            elif point2[0]=="L" and type(point1)!=str:
+            elif point2[0]=="L" and type(point1[0])!=str:
                 point2 = (point1[0],-1,point1[2])
-            elif point2[0]=="R" and type(point1)!=str:
+            elif point2[0]=="R" and type(point1[0])!=str:
                 point2 = (point1[0],2*self.dz-1,point1[2])
-            if type(point1)!=str:
+            if type(point1[0])!=str:
                 if point1[1]%2==0:
                     plt.plot([point1[1]/2,point2[1]/2],[point1[2]+((point1[1]+1)%2)/2,point2[2]+((point2[1]+1)%2)/2],[point1[0]+.5,point2[0]+.5],color=matchColor,lw=errorWeight,ls='dotted')
                 else:
@@ -274,19 +284,20 @@ class Syndrome:
         """
         for tIndex in range(self.dt):
             for zIndex in range(2*self.dz-1):
-                for xIndex in range(self.dx-1+zIndex%2):
-                    defectPairList = []
+                defectPairList = []
+                for xIndex in range(self.dx-1+zIndex%2): #Index over ancilla qubits 
                     #Ancilla Preparation/Measurement errors
                     ancillaError = random.choices(list(self.SPAMErrors.keys()),weights=[self.SPAMErrors[key] for key in self.SPAMErrors.keys()])[0]
                     defectPairList = defectPairList+self.GenerateDefectsFromError(0,ancillaError,tIndex,zIndex,xIndex)
+                for xIndex in range(self.dx-zIndex%2): #Index over data qubits
                     #Layer 1 Data Preparation/Measurement errors
                     layerOneDataError = random.choices(list(self.SPAMErrors.keys()),weights=[self.SPAMErrors[key] for key in self.SPAMErrors.keys()])[0]
                     defectPairList = defectPairList+self.GenerateDefectsFromError(1,layerOneDataError,tIndex,zIndex,xIndex)
                     #Layer 2 Data Preparation/Measurement errors
                     layerTwoDataError = random.choices(list(self.SPAMErrors.keys()),weights=[self.SPAMErrors[key] for key in self.SPAMErrors.keys()])[0]
                     defectPairList = defectPairList+self.GenerateDefectsFromError(1,layerTwoDataError,tIndex,zIndex,xIndex)
-                    for defect1,defect2 in defectPairList:
-                        self.AddMatchedPair(defect1,defect2)
+                for defect1,defect2 in defectPairList:
+                    self.AddMatchedPair(defect1,defect2)
                         
     def GenerateDistanceDict(self):
         """
@@ -302,7 +313,6 @@ class Syndrome:
                     distanceGraph[defect1][defect2]['weight']=distanceGraph[defect1][defect2]['weight']+probability
                 except:
                     distanceGraph.add_edge(defect1,defect2,weight=probability)
-
         for tIndex in range(self.dt):
             for zIndex in range(2*self.dz-1):
                 for xIndex in range(self.dx-1+zIndex%2): #Index over ancilla qubits 
@@ -322,12 +332,11 @@ class Syndrome:
                         probability = self.SPAMErrors[layerTwoDataError]
                         if probability>0:
                             AddToNodeGraph(probability,defectPairList)
+        point1,point2=(4,9,1),"R"
         for defect1,defect2 in distanceGraph.edges():
             distanceGraph[defect1][defect2]['weight']=-math.log(distanceGraph[defect1][defect2]['weight'])
         distanceDict = dict(nx.all_pairs_dijkstra_path_length(distanceGraph))
-        saveFile = open("distanceDict_"+str(self.dt)+"_"+str(self.dz)+"_"+str(self.dx)+"_"+str(self.CNOTErrors["ZZ"])+".pk",'wb')
-        pickle.dump(distanceDict,saveFile)
-        saveFile.close()
+        print(nx.shortest_path(distanceGraph,point1,point2,weight='weight'),distanceDict[point1][point2])
         return distanceDict
  
     def MatchErrors(self):
@@ -368,10 +377,8 @@ class Syndrome:
         else:
             scaling = INFTY
         evenErrorGraph = [(x[0],x[1],int(x[2]*scaling)) for x in evenErrorGraph]
-        print(oddErrorNodes)
         for nodeIndex1 in range(len(oddErrorNodes)):
             for nodeIndex2 in range(nodeIndex1+1,len(oddErrorNodes)):
-                print(oddErrorNodes[nodeIndex1],oddErrorNodes[nodeIndex2])
                 weight = self.distanceDict[oddErrorNodes[nodeIndex1]][oddErrorNodes[nodeIndex2]]
                 oddErrorGraph.append((oddErrorNodes[nodeIndex1],oddErrorNodes[nodeIndex2],weight))
             minWeight = min([self.distanceDict[oddErrorNodes[nodeIndex1]]["L"],self.distanceDict[oddErrorNodes[nodeIndex1]]["R"]])
@@ -425,26 +432,29 @@ class Syndrome:
 
 
         
-dz,dx=2,3
-dt=3
-eta=1
-p = .005
+"""
+dz,dx=10,4
+dt=10
+eta=10000
+p = .04
 S = Syndrome(dz,dx,dt,p,eta)
 S.GenerateDistanceDict()
 for i in range(100):
-    S = Syndrome(dz,dx,dt,p,eta)
+    S.Clear()
     S.GenerateErrors()
     saveFile=open("saveFile.pk",'wb')
     pickle.dump(S,saveFile)
     saveFile.close()
+    print(S.correctMatches)
     #saveFile = open("saveFile.pk",'rb')
     #S=pickle.load(saveFile)
     #saveFile.close()
     S.MatchErrors()
     fig = plt.figure()
     ax = fig.add_subplot(1,1,1,projection='3d')
-    S.PlotCluster(ax)
+    S.PlotCluster(ax,plotScaffold=False)
     S.AttemptCorrectionOfErrors()
     print(S.correctMatches)
     print("Z,X",S.FindLogicalErrors())
     plt.show()
+"""
