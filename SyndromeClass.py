@@ -295,7 +295,7 @@ class Syndrome:
                     defectPairList = defectPairList+self.GenerateDefectsFromError(1,layerOneDataError,tIndex,zIndex,xIndex)
                     #Layer 2 Data Preparation/Measurement errors
                     layerTwoDataError = random.choices(list(self.SPAMErrors.keys()),weights=[self.SPAMErrors[key] for key in self.SPAMErrors.keys()])[0]
-                    defectPairList = defectPairList+self.GenerateDefectsFromError(1,layerTwoDataError,tIndex,zIndex,xIndex)
+                    defectPairList = defectPairList+self.GenerateDefectsFromError(2,layerTwoDataError,tIndex,zIndex,xIndex)
                 for defect1,defect2 in defectPairList:
                     self.AddMatchedPair(defect1,defect2)
                         
@@ -334,10 +334,6 @@ class Syndrome:
                             AddToNodeGraph(probability,defectPairList)
         for defect1,defect2 in distanceGraph.edges():
             distanceGraph[defect1][defect2]['weight']=-math.log(distanceGraph[defect1][defect2]['weight']/(1-distanceGraph[defect1][defect2]['weight']))
-        point1,point2=(7,5,2),(7,9,2)
-        shortestPath = nx.shortest_path(distanceGraph,point1,point2,weight='weight')
-        for i in range(len(shortestPath)-1):
-            print(shortestPath[i],shortestPath[i+1],distanceGraph[shortestPath[i]][shortestPath[i+1]])
         distanceDict = dict(nx.all_pairs_dijkstra_path_length(distanceGraph))
         return distanceDict
  
@@ -460,23 +456,14 @@ class Syndrome:
 
 
         
-dz,dx=8,8
-dt=8
+"""
+dz,dx=6,6
+dt=6
 eta=1
 p = .01
 S = Syndrome(dz,dx,dt,p,eta)
-S.GenerateDistanceDict()
-"""
-for point1 in S.distanceDict:
-    for point2 in S.distanceDict[point1]:
-        if type(point1)==str:
-            point1,point2=point2,point1
-        if type(point1)!=str:
-            dictDistance,formulaDistance=S.distanceDict[point1][point2],S.ComputeWeight(point1,point2)
-            if formulaDistance<dictDistance and point1[1]!=0 and point1[1]!=1 and point1[1]!=2*dz-2 and point1[1]!=2*dz-3 and point1[2]!=0 and point1[2]!=dx-1:
-                print(point1,point2,formulaDistance,dictDistance)
-
-for i in range(100):
+totalX,totalZ = 0,0
+for i in range(1000):
     S.Clear()
     S.GenerateErrors()
     saveFile=open("saveFile.pk",'wb')
@@ -486,11 +473,16 @@ for i in range(100):
     #S=pickle.load(saveFile)
     #saveFile.close()
     S.MatchErrors()
-    fig = plt.figure()
-    ax = fig.add_subplot(1,1,1,projection='3d')
-    S.PlotCluster(ax,plotScaffold=False)
+    #fig = plt.figure()
+    #ax = fig.add_subplot(1,1,1,projection='3d')
+    #S.PlotCluster(ax,plotScaffold=False)
     S.AttemptCorrectionOfErrors()
+    Z,X = S.FindLogicalErrors()
     print(S.correctMatches)
-    print("Z,X",S.FindLogicalErrors())
+    if Z:
+        totalZ+=1
+    if X:
+        totalX+=1
     plt.show()
+print(totalX,totalZ)
 """

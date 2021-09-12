@@ -11,7 +11,7 @@ eta,pEst,dx,clusterType = int(sys.argv[1]),float(sys.argv[2]),int(sys.argv[3]),s
 
 numSamples=10
 pList = np.linspace(.0001,2*pEst,15)
-if clusterType==XZZX and eta>50:
+if clusterType=='XZZX' and eta>50:
     dz = dx*3
     numMeasurements = dx*3
 else:

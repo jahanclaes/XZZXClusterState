@@ -2,10 +2,10 @@ import os,stat
 
 
 overallSubmitFile = open("submitThresholdJobs.sh",'w+')
-biases = [1]
+biases = [1,100]
 clusterTypes = ["RHG","XZZX"]
 dxList = range(2,10)
-pList = [[.015,.015],[.03,.05]]
+pList = [[.01,.015],[.01,.03]]
 
 for biasIndex in range(len(biases)): 
     for clusterTypeIndex in range(2): 
