@@ -2,18 +2,18 @@ import os,stat
 
 
 overallSubmitFile = open("submitThresholdJobs.sh",'w+')
-biases = [1,100]
+biases = [1,100,10000,100000]
 clusterTypes = ["RHG","XZZX"]
-dxList = range(2,10)
-pList = [[.01,.015],[.01,.03]]
+dxList = range(2,15)
+pList = [[.01,.015,.015,.015],[.01,.03,.05,.05]]
 
 for biasIndex in range(len(biases)): 
-    for clusterTypeIndex in range(2): 
+    for clusterTypeIndex in range(len(clusterTypes)): 
         for dx in dxList:
             p = pList[clusterTypeIndex][biasIndex]
             clusterType = clusterTypes[clusterTypeIndex]
             eta = biases[biasIndex]
-            fileName = "submitSimulateJob_"+"_"+str(eta)+"_"+str(dx)+"_"+clusterType+".sh"
+            fileName = "submitSimulateJob_"+str(eta)+"_"+str(dx)+"_"+clusterType+".sh"
             overallSubmitFile.write("sbatch "+fileName+"; ")
             submitFile = open(fileName,"w+")
             submitFile.write("#!/bin/bash\n")

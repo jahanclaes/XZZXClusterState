@@ -14,6 +14,10 @@ pList = np.linspace(.0001,2*pEst,15)
 if clusterType=='XZZX' and eta>50:
     dz = dx*3
     numMeasurements = dx*3
+elif clusterType=="XZZX" and eta==100000:
+    dz=dx
+    dt=dx
+    dx=5
 else:
     dz = dx
     numMeasurements = dx

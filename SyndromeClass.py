@@ -256,6 +256,14 @@ class Syndrome:
                 defectPairList.append(((tIndex,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
             if zIndex%2==1 and (errorString == "Z" or errorString=="Y"):
                 defectPairList.append(((tIndex,zIndex+1,xIndex),(tIndex,zIndex-1,xIndex)))
+        if errorIndex==3: #First Layer1 entangling gate
+        if errorIndex==4: #Second Layer1 entangling gate
+        if errorIndex==5: #Third Layer1 entangling gate
+        if errorIndex==6: #Fourth Layer1 entangling gate
+        if errorIndex==7: #Fourth Layer1 entangling gate
+        if errorIndex==6: #Fourth Layer1 entangling gate
+
+            
         for index in range(len(defectPairList)):
             point1,point2 = defectPairList[index]
             if point1[1]==-1:
@@ -383,12 +391,16 @@ class Syndrome:
         oddEdgeNodes=[]
         for nodeIndex1 in range(len(evenErrorNodes)):
             for nodeIndex2 in range(nodeIndex1+1,len(evenErrorNodes)):
-                weight = self.distanceDict[evenErrorNodes[nodeIndex1]][evenErrorNodes[nodeIndex2]]
+                #weight = self.distanceDict[evenErrorNodes[nodeIndex1]][evenErrorNodes[nodeIndex2]]
+                weight = self.ComputeWeight(evenErrorNodes[nodeIndex1],evenErrorNodes[nodeIndex2])
                 evenErrorGraph.append((evenErrorNodes[nodeIndex1],evenErrorNodes[nodeIndex2],weight))
-            minWeight = min([self.distanceDict[evenErrorNodes[nodeIndex1]]["T"],self.distanceDict[evenErrorNodes[nodeIndex1]]["B"]])
-            if minWeight==self.distanceDict[evenErrorNodes[nodeIndex1]]["T"]:
+            #minWeight = min([self.distanceDict[evenErrorNodes[nodeIndex1]]["T"],self.distanceDict[evenErrorNodes[nodeIndex1]]["B"]])
+            minWeight = min([self.ComputeWeight(evenErrorNodes[nodeIndex1],"T"),self.ComputeWeight(evenErrorNodes[nodeIndex1],"B")])
+            #if minWeight==self.distanceDict[evenErrorNodes[nodeIndex1]]["T"]:
+            if minWeight==self.ComputeWeight(evenErrorNodes[nodeIndex1],"T"):
                 label = ("T",nodeIndex1)
-            elif minWeight==self.distanceDict[evenErrorNodes[nodeIndex1]]["B"]:
+            #elif minWeight==self.distanceDict[evenErrorNodes[nodeIndex1]]["B"]:
+            elif minWeight==self.ComputeWeight(evenErrorNodes[nodeIndex1],"B"):
                 label = ("B",nodeIndex1)
             evenErrorGraph.append((evenErrorNodes[nodeIndex1],label,minWeight))
             evenEdgeNodes.append(label)
@@ -403,12 +415,16 @@ class Syndrome:
         evenErrorGraph = [(x[0],x[1],int(x[2]*scaling)) for x in evenErrorGraph]
         for nodeIndex1 in range(len(oddErrorNodes)):
             for nodeIndex2 in range(nodeIndex1+1,len(oddErrorNodes)):
-                weight = self.distanceDict[oddErrorNodes[nodeIndex1]][oddErrorNodes[nodeIndex2]]
+                #weight = self.distanceDict[oddErrorNodes[nodeIndex1]][oddErrorNodes[nodeIndex2]]
+                weight = self.ComputeWeight(oddErrorNodes[nodeIndex1],oddErrorNodes[nodeIndex2])
                 oddErrorGraph.append((oddErrorNodes[nodeIndex1],oddErrorNodes[nodeIndex2],weight))
-            minWeight = min([self.distanceDict[oddErrorNodes[nodeIndex1]]["L"],self.distanceDict[oddErrorNodes[nodeIndex1]]["R"]])
-            if minWeight==self.distanceDict[oddErrorNodes[nodeIndex1]]["L"]:
+            #minWeight = min([self.distanceDict[oddErrorNodes[nodeIndex1]]["L"],self.distanceDict[oddErrorNodes[nodeIndex1]]["R"]])
+            minWeight = min([self.ComputeWeight(oddErrorNodes[nodeIndex1],"L"),self.ComputeWeight(oddErrorNodes[nodeIndex1],"R")])
+            #if minWeight==self.distanceDict[oddErrorNodes[nodeIndex1]]["L"]:
+            if minWeight==self.ComputeWeight(oddErrorNodes[nodeIndex1],"L"):
                 label = ("L",nodeIndex1)
-            elif minWeight==self.distanceDict[oddErrorNodes[nodeIndex1]]["R"]:
+            #elif minWeight==self.distanceDict[oddErrorNodes[nodeIndex1]]["R"]:
+            elif minWeight==self.ComputeWeight(oddErrorNodes[nodeIndex1],"R"):
                 label = ("R",nodeIndex1)
             oddErrorGraph.append((oddErrorNodes[nodeIndex1],label,minWeight))
             oddEdgeNodes.append(label)
