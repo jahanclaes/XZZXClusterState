@@ -9,6 +9,7 @@ import sys
 
 eta,pEst,dx,clusterType = int(sys.argv[1]),float(sys.argv[2]),int(sys.argv[3]),sys.argv[4]
 
+
 numSamples=10
 pList = np.linspace(.0001,2*pEst,15)
 if clusterType=='XZZX' and eta>50:

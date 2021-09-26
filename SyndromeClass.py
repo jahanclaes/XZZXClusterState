@@ -27,6 +27,16 @@ PauliArray = [["I","X","Y","Z"],["X","I","Z","Y"],["Y","Z","I","X"],["Z","Y","X"
 def PauliMultiply(P1,P2):
     return PauliArray[PauliList.index(P1)][PauliList.index(P2)]
 
+def Hadamard(P1):
+    if P1=="X":
+        return "Z"
+    elif P1=="Y":
+        return "Y"
+    elif P1=="Z":
+        return "X"
+    elif P1=="I":
+        return "I"
+
 def mwpm_ids(edges):
     """Minimum Weight Perfect Matching using node ids (Blossom V algorithm).
 
@@ -87,7 +97,7 @@ def mwpm(edges):
 
 
 """
-Overall measurement pattern on a single stabilizer is X-Z-Z-X:
+Overall measurement pattern on a single stabilizer is X-X-Z-Z:
   Z      2
  / \    / \ 
 X   X  1   4 
@@ -118,11 +128,15 @@ class Syndrome:
         twoQubitErrors =["II","IZ","ZI","ZZ","IX","IY","XI","XX","XY","XZ","YI","YX","YY","YZ","ZX","ZY"] 
         weightsSPAM = [1-(pMeasure+pPrep)*(1+2/eta),pMeasure+pPrep,(pMeasure+pPrep)/eta,(pMeasure+pPrep)/eta]
         weightsIdle = [0]*4 
-        weightsCNOT = [0]*16
-        weightsCZ = [0]*16
+        weightsCNOT = [1-2*pCNOT-12*pCNOT/eta,pCNOT,pCNOT/2,pCNOT/2]+[pCNOT/eta]*12 
+        weightsCZ = [1-2*pCZ-pCZ**2-12*pCZ/eta,pCZ,pCZ,pCZ**2]+[pCZ/eta]*12
         self.SPAMErrors = {singleQubitErrors[i]:weightsSPAM[i] for i in range(4)}
         self.idleErrors = {singleQubitErrors[i]:weightsIdle[i] for i in range(4)}
-        self.CNOTErrors = {twoQubitErrors[i]:weightsCNOT[i] for i in range(16)}
+        if clusterType=="XZZX":
+            self.CNOTErrors = {twoQubitErrors[i]:weightsCNOT[i] for i in range(16)} #Errors are (target,control)
+        else:
+            print(Hadamard(twoQubitErrors[0][0]),twoQubitErrors[0][1])
+            self.CNOTErrors = {Hadamard(twoQubitErrors[i][0])+twoQubitErrors[i][1]:weightsCZ[i] for i in range(16)} #Hadamards make this the RHG Lattice
         self.CZErrors = {twoQubitErrors[i]:weightsCZ[i] for i in range(16)}
         try:
             saveFile = open("distanceDict_"+str(self.dt)+"_"+str(self.dz)+"_"+str(self.dx)+"_"+str(p)+"_"+str(eta)+"_"+clusterType+".pk",'rb')
@@ -245,25 +259,90 @@ class Syndrome:
         if errorIndex==1: # Layer1 data qubit Preparation/Measurement errors
             if zIndex%2==0 and (errorString == "Z" or errorString=="Y"):
                 defectPairList.append(((tIndex-1,zIndex+1,xIndex),(tIndex-1,zIndex-1,xIndex)))
-            if zIndex%2==1 and (errorString == "X" or errorString=="Y") and self.clusterType=="XZZX":
-                defectPairList.append(((tIndex-1,zIndex,xIndex+1),(tIndex-1,zIndex,xIndex)))
-            if zIndex%2==1 and (errorString == "Z" or errorString=="Y") and self.clusterType=="RHG":
+            if zIndex%2==1 and (errorString == "X" or errorString=="Y"):
                 defectPairList.append(((tIndex-1,zIndex,xIndex+1),(tIndex-1,zIndex,xIndex)))
         if errorIndex==2: # Layer2 data qubit Preparation/Measurement errors
-            if zIndex%2==0 and (errorString == "X" or errorString=="Y") and self.clusterType=="XZZX":
-                defectPairList.append(((tIndex,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
-            if zIndex%2==0 and (errorString == "Z" or errorString=="Y") and self.clusterType=="RHG":
+            if zIndex%2==0 and (errorString == "X" or errorString=="Y"):
                 defectPairList.append(((tIndex,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
             if zIndex%2==1 and (errorString == "Z" or errorString=="Y"):
                 defectPairList.append(((tIndex,zIndex+1,xIndex),(tIndex,zIndex-1,xIndex)))
-        if errorIndex==3: #First Layer1 entangling gate
-        if errorIndex==4: #Second Layer1 entangling gate
-        if errorIndex==5: #Third Layer1 entangling gate
-        if errorIndex==6: #Fourth Layer1 entangling gate
-        if errorIndex==7: #Fourth Layer1 entangling gate
-        if errorIndex==6: #Fourth Layer1 entangling gate
-
-            
+        if errorIndex==3 and zIndex>0: #Gate to the left of the ancilla
+            if errorString[0]=="X" or errorString[0]=="Y":
+                defectPairList.append(((tIndex-1,zIndex-1,xIndex-zIndex%2),(tIndex-1,zIndex-1,xIndex-zIndex%2+1)))
+            if errorString[0]=="Z" or errorString[0]=="Y":
+                defectPairList.append(((tIndex-1,zIndex-2,xIndex),(tIndex,zIndex,xIndex)))
+            if errorString[1]=="Z" or errorString[1]=="Y":
+                defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
+            if errorString[1]=="X" or errorString[1]=="Y":
+                defectPairList.append(((tIndex-1,zIndex-1,xIndex),(tIndex-1,zIndex-1,xIndex+1)))
+        if errorIndex==4 and zIndex<2*self.dz-2: #Gate to the right of the ancilla
+            if errorString[0]=="X" or errorString[0]=="Y":
+                defectPairList.append(((tIndex-1,zIndex+1,xIndex-zIndex%2),(tIndex-1,zIndex+1,xIndex-zIndex%2+1)))
+            if errorString[0]=="Z" or errorString[0]=="Y":
+                defectPairList.append(((tIndex,zIndex,xIndex),(tIndex,zIndex+2,xIndex)))
+            if errorString[1]=="Z" or errorString[1]=="Y":
+                defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
+            if errorString[1]=="X" or errorString[1]=="Y":
+                defectPairList.append(((tIndex-1,zIndex-1,xIndex-zIndex%2),(tIndex-1,zIndex-1,xIndex-zIndex%2+1)))
+                defectPairList.append(((tIndex-1,zIndex+1,xIndex-zIndex%2),(tIndex-1,zIndex+1,xIndex-zIndex%2+1)))
+            if errorString == "XX":
+                defectPairList=[((tIndex-1,zIndex-1,xIndex-zIndex%2),(tIndex-1,zIndex-1,xIndex-zIndex%2+1))]
+        if errorIndex==5 and xIndex>self.dz%2-1: #Gate below the ancilla
+            if errorString[0]=="X" or errorString[0]=="Y":
+                defectPairList.append(((tIndex-1,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
+            if errorString[0]=="Z" or errorString[0]=="Y":
+                defectPairList.append(((tIndex-1,zIndex-1,xIndex-zIndex%2),(tIndex-1,zIndex+1,xIndex-zIndex%2)))
+            if errorString[1]=="Z" or errorString[1]=="Y":
+                defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
+            if errorString[1]=="X" or errorString[1]=="Y":
+                defectPairList.append(((tIndex-1,zIndex-1,xIndex+1-zIndex%2),(tIndex-1,zIndex+1,xIndex+1-zIndex%2)))
+        if errorIndex==6 and xIndex<self.dx-1: #Gate above the ancilla
+            if errorString[0]=="X" or errorString[0]=="Y":
+                defectPairList.append(((tIndex,zIndex,xIndex+1),(tIndex,zIndex,xIndex)))
+            if errorString[0]=="Z" or errorString[0]=="Y":
+                defectPairList.append(((tIndex-1,zIndex-1,xIndex+1-zIndex%2),(tIndex-1,zIndex+1,xIndex+1-zIndex%2)))
+            if errorString[1]=="Z" or errorString[1]=="Y":
+                defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
+            if errorString[1]=="X" or errorString[1]=="Y":
+                pass
+        if errorIndex==7: #First Layer Entangling Gate
+            if zIndex%2==0:
+                if errorString[0]=="X" or errorString[0]=="Y": #Upper end
+                    defectPairList.append(((tIndex,zIndex,xIndex+zIndex%2-1),(tIndex,zIndex,xIndex+zIndex%2)))
+                if errorString[0]=="Z" or errorString[0]=="Y": #Upper end
+                    defectPairList.append(((tIndex-1,zIndex-1,xIndex),(tIndex-1,zIndex+1,xIndex)))
+                if errorString[1]=="Z" or errorString[1]=="Y": #Lower end
+                    defectPairList.append(((tIndex-1,zIndex-1,xIndex),(tIndex-1,zIndex+1,xIndex)))
+                if errorString[1]=="X" or errorString[1]=="Y": #Lower end
+                    pass
+            if zIndex%2==1:
+                if errorString[0]=="X" or errorString[0]=="Y": #Lower end
+                    defectPairList.append(((tIndex-1,zIndex,xIndex+zIndex%2-1),(tIndex-1,zIndex,xIndex+zIndex%2)))  
+                if errorString[0]=="Z" or errorString[0]=="Y": #Lower end           
+                    pass 
+                if errorString[1]=="Z" or errorString[1]=="Y": #Upper end
+                    defectPairList.append(((tIndex,zIndex-1,xIndex),(tIndex,zIndex+1,xIndex)))  
+                if errorString[1]=="X" or errorString[1]=="Y": #Upper end
+                    defectPairList.append(((tIndex-1,zIndex,xIndex+zIndex%2-1),(tIndex-1,zIndex,xIndex+zIndex%2)))    
+        if errorIndex==8: #Second Layer Entangling Gate
+            if zIndex%2==0:
+                if errorString[0]=="X" or errorString[0]=="Y": #Lower end
+                    defectPairList.append(((tIndex,zIndex,xIndex+zIndex%2-1),(tIndex,zIndex,xIndex+zIndex%2))) 
+                if errorString[0]=="Z" or errorString[0]=="Y": #Lower end           
+                    pass 
+                if errorString[1]=="Z" or errorString[1]=="Y": #Upper end
+                    defectPairList.append(((tIndex,zIndex-1,xIndex),(tIndex,zIndex+1,xIndex)))
+                if errorString[1]=="X" or errorString[1]=="Y": #Upper end
+                    defectPairList.append(((tIndex,zIndex,xIndex+zIndex%2-1),(tIndex,zIndex,xIndex+zIndex%2)))
+            if zIndex%2==1:
+                if errorString[0]=="X" or errorString[0]=="Y": #Upper end
+                    defectPairList.append(((tIndex,zIndex,xIndex+zIndex%2-1),(tIndex,zIndex,xIndex+zIndex%2)))
+                if errorString[0]=="Z" or errorString[0]=="Y": #Upper end
+                    defectPairList.append(((tIndex,zIndex-1,xIndex),(tIndex,zIndex+1,xIndex)))
+                if errorString[1]=="Z" or errorString[1]=="Y": #Lower end
+                    defectPairList.append(((tIndex,zIndex-1,xIndex),(tIndex,zIndex+1,xIndex)))
+                if errorString[1]=="X" or errorString[1]=="Y": #Lower end
+                    pass
         for index in range(len(defectPairList)):
             point1,point2 = defectPairList[index]
             if point1[1]==-1:
@@ -297,13 +376,35 @@ class Syndrome:
                     #Ancilla Preparation/Measurement errors
                     ancillaError = random.choices(list(self.SPAMErrors.keys()),weights=[self.SPAMErrors[key] for key in self.SPAMErrors.keys()])[0]
                     defectPairList = defectPairList+self.GenerateDefectsFromError(0,ancillaError,tIndex,zIndex,xIndex)
+                    #Gate to the left of the Ancilla
+                    gateError = random.choices(list(self.CNOTErrors.keys()),weights=[self.CNOTErrors[key] for key in self.CNOTErrors.keys()])[0]
+                    defectPairList = defectPairList+self.GenerateDefectsFromError(3,gateError,tIndex,zIndex,xIndex)
+                    #Gate to the right of the Ancilla
+                    gateError = random.choices(list(self.CNOTErrors.keys()),weights=[self.CNOTErrors[key] for key in self.CNOTErrors.keys()])[0]
+                    defectPairList = defectPairList+self.GenerateDefectsFromError(4,gateError,tIndex,zIndex,xIndex)
+                    #Gate below the Ancilla
+                    gateError = random.choices(list(self.CZErrors.keys()),weights=[self.CZErrors[key] for key in self.CZErrors.keys()])[0]
+                    defectPairList = defectPairList+self.GenerateDefectsFromError(5,gateError,tIndex,zIndex,xIndex)
+                    #Gate above the Ancilla
+                    gateError = random.choices(list(self.CZErrors.keys()),weights=[self.CZErrors[key] for key in self.CZErrors.keys()])[0]
+                    defectPairList = defectPairList+self.GenerateDefectsFromError(6,gateError,tIndex,zIndex,xIndex)
                 for xIndex in range(self.dx-zIndex%2): #Index over data qubits
                     #Layer 1 Data Preparation/Measurement errors
                     layerOneDataError = random.choices(list(self.SPAMErrors.keys()),weights=[self.SPAMErrors[key] for key in self.SPAMErrors.keys()])[0]
+                    if self.clusterType=="RHG" and zIndex%2==1:
+                        layerOneDataError = Hadamard(layerOneDataError)
                     defectPairList = defectPairList+self.GenerateDefectsFromError(1,layerOneDataError,tIndex,zIndex,xIndex)
                     #Layer 2 Data Preparation/Measurement errors
                     layerTwoDataError = random.choices(list(self.SPAMErrors.keys()),weights=[self.SPAMErrors[key] for key in self.SPAMErrors.keys()])[0]
+                    if self.clusterType=="RHG" and zIndex%2==0:
+                        layerTwoDataError = Hadamard(layerTwoDataError)
                     defectPairList = defectPairList+self.GenerateDefectsFromError(2,layerTwoDataError,tIndex,zIndex,xIndex)
+                    #First Layer Entangling Gate
+                    gateError = random.choices(list(self.CNOTErrors.keys()),weights=[self.CNOTErrors[key] for key in self.CNOTErrors.keys()])[0]
+                    defectPairList = defectPairList+self.GenerateDefectsFromError(7,gateError,tIndex,zIndex,xIndex)
+                    #Second Layer Entangling Gate
+                    gateError = random.choices(list(self.CNOTErrors.keys()),weights=[self.CNOTErrors[key] for key in self.CNOTErrors.keys()])[0]
+                    defectPairList = defectPairList+self.GenerateDefectsFromError(8,gateError,tIndex,zIndex,xIndex)
                 for defect1,defect2 in defectPairList:
                     self.AddMatchedPair(defect1,defect2)
                         
@@ -323,10 +424,65 @@ class Syndrome:
                     distanceGraph.add_edge(defect1,defect2,weight=probability)
         for tIndex in range(self.dt):
             for zIndex in range(2*self.dz-1):
+                defectPairList = []
                 for xIndex in range(self.dx-1+zIndex%2): #Index over ancilla qubits 
-                    for ancillaError in self.SPAMErrors:#Ancilla Preparation/Measurement errors
+                    #Ancilla Preparation/Measurement errors
+                    for ancillaError in self.SPAMErrors:
                         defectPairList = self.GenerateDefectsFromError(0,ancillaError,tIndex,zIndex,xIndex)
                         probability = self.SPAMErrors[ancillaError]
+                        if probability>0:
+                            AddToNodeGraph(probability,defectPairList)
+                    #Gate to the left of the Ancilla
+                    for gateError in self.CNOTErrors:
+                        defectPairList = self.GenerateDefectsFromError(3,gateError,tIndex,zIndex,xIndex)
+                        probability = self.CNOTErrors[gateError]
+                        if probability>0:
+                            AddToNodeGraph(probability,defectPairList)
+                    #Gate to the right of the Ancilla
+                    for gateError in self.CNOTErrors:
+                        defectPairList = self.GenerateDefectsFromError(4,gateError,tIndex,zIndex,xIndex)
+                        probability = self.CNOTErrors[gateError]
+                        if probability>0:
+                            AddToNodeGraph(probability,defectPairList)
+                    #Gate below the Ancilla
+                    for gateError in self.CZErrors:
+                        defectPairList = self.GenerateDefectsFromError(5,gateError,tIndex,zIndex,xIndex)
+                        probability = self.CZErrors[gateError]
+                        if probability>0:
+                            AddToNodeGraph(probability,defectPairList)
+                    #Gate above the Ancilla
+                    for gateError in self.CZErrors:
+                        defectPairList = self.GenerateDefectsFromError(6,gateError,tIndex,zIndex,xIndex)
+                        probability = self.CZErrors[gateError]
+                        if probability>0:
+                            AddToNodeGraph(probability,defectPairList)
+                for xIndex in range(self.dx-zIndex%2): #Index over data qubits
+                    #Layer 1 Data Preparation/Measurement errors
+                    for layerOneDataError in self.SPAMErrors:
+                        probability=self.SPAMErrors[layerOneDataError]
+                        if self.clusterType=="RHG" and zIndex%2==1:
+                            layerOneDataError = Hadamard(layerOneDataError)
+                        defectPairList = self.GenerateDefectsFromError(1,layerOneDataError,tIndex,zIndex,xIndex)
+                        if probability>0:
+                            AddToNodeGraph(probability,defectPairList)
+                    #Layer 2 Data Preparation/Measurement errors
+                    for layerTwoDataError in self.SPAMErrors:
+                        probability=self.SPAMErrors[layerOneDataError]
+                        if self.clusterType=="RHG" and zIndex%2==0:
+                            layerTwoDataError = Hadamard(layerTwoDataError)
+                        defectPairList = self.GenerateDefectsFromError(2,layerTwoDataError,tIndex,zIndex,xIndex)
+                        if probability>0:
+                            AddToNodeGraph(probability,defectPairList)
+                    #First Layer Entangling Gate
+                    for gateError in self.CNOTErrors:
+                        defectPairList =self.GenerateDefectsFromError(7,gateError,tIndex,zIndex,xIndex)
+                        probability=self.CNOTErrors[gateError]
+                        if probability>0:
+                            AddToNodeGraph(probability,defectPairList)
+                    #Second Layer Entangling Gate
+                    for gateError in self.CNOTErrors:
+                        defectPairList =self.GenerateDefectsFromError(8,gateError,tIndex,zIndex,xIndex)
+                        probability=self.CNOTErrors[gateError]
                         if probability>0:
                             AddToNodeGraph(probability,defectPairList)
                 for xIndex in range(self.dx-zIndex%2): #Index over data qubits
@@ -345,32 +501,6 @@ class Syndrome:
         distanceDict = dict(nx.all_pairs_dijkstra_path_length(distanceGraph))
         return distanceDict
  
-    def ComputeWeight(self,node1,node2):
-        p=self.SPAMErrors["Z"]
-        eta=p/self.SPAMErrors["X"]
-        if node2=="T" and self.clusterType=="XZZX":
-            weight = -math.log(2*p/eta/(1-2*p/eta))*(self.dx-1-node1[2])
-        elif node2=="T" and not self.clusterType=="XZZX":
-            weight = -math.log((p+p/eta)/(1-p-p/eta))*(self.dx-1-node1[2])
-        elif node2=="B" and self.clusterType=="XZZX":
-            weight = -math.log(2*p/eta/(1-2*p/eta))*(node1[2]+1)
-        elif node2=="B" and not self.clusterType=="XZZX":
-            weight = -math.log((p+p/eta)/(1-p-p/eta))*(node1[2]+1)
-        elif node2=="L":
-            weight = -math.log((p+p/eta)/(1-p-p/eta))*(node1[1]+1)/2
-        elif node2=="R":
-            weight = -math.log((p+p/eta)/(1-p-p/eta))*(2*self.dz-node1[1]-1)/2
-        else:
-            zDistance =abs(node2[1]-node1[1])/2
-            tDistance =abs(node2[0]-node1[0])
-            xDistance =abs(node2[2]-node1[2]) 
-            if self.clusterType=="XZZX":
-                weight = -(math.log((p+p/eta)/(1-p-p/eta))*(zDistance+tDistance)+math.log(2*p/eta/(1-2*p/eta))*xDistance)
-            else:
-                weight = -(math.log((p+p/eta)/(1-p-p/eta))*(zDistance+tDistance+xDistance))
-        return weight
-
-
     def MatchErrors(self):
         """
         Call after GenerateErrors().
@@ -391,16 +521,12 @@ class Syndrome:
         oddEdgeNodes=[]
         for nodeIndex1 in range(len(evenErrorNodes)):
             for nodeIndex2 in range(nodeIndex1+1,len(evenErrorNodes)):
-                #weight = self.distanceDict[evenErrorNodes[nodeIndex1]][evenErrorNodes[nodeIndex2]]
-                weight = self.ComputeWeight(evenErrorNodes[nodeIndex1],evenErrorNodes[nodeIndex2])
+                weight = self.distanceDict[evenErrorNodes[nodeIndex1]][evenErrorNodes[nodeIndex2]]
                 evenErrorGraph.append((evenErrorNodes[nodeIndex1],evenErrorNodes[nodeIndex2],weight))
-            #minWeight = min([self.distanceDict[evenErrorNodes[nodeIndex1]]["T"],self.distanceDict[evenErrorNodes[nodeIndex1]]["B"]])
-            minWeight = min([self.ComputeWeight(evenErrorNodes[nodeIndex1],"T"),self.ComputeWeight(evenErrorNodes[nodeIndex1],"B")])
-            #if minWeight==self.distanceDict[evenErrorNodes[nodeIndex1]]["T"]:
-            if minWeight==self.ComputeWeight(evenErrorNodes[nodeIndex1],"T"):
+            minWeight = min([self.distanceDict[evenErrorNodes[nodeIndex1]]["T"],self.distanceDict[evenErrorNodes[nodeIndex1]]["B"]])
+            if minWeight==self.distanceDict[evenErrorNodes[nodeIndex1]]["T"]:
                 label = ("T",nodeIndex1)
-            #elif minWeight==self.distanceDict[evenErrorNodes[nodeIndex1]]["B"]:
-            elif minWeight==self.ComputeWeight(evenErrorNodes[nodeIndex1],"B"):
+            elif minWeight==self.distanceDict[evenErrorNodes[nodeIndex1]]["B"]:
                 label = ("B",nodeIndex1)
             evenErrorGraph.append((evenErrorNodes[nodeIndex1],label,minWeight))
             evenEdgeNodes.append(label)
@@ -415,16 +541,12 @@ class Syndrome:
         evenErrorGraph = [(x[0],x[1],int(x[2]*scaling)) for x in evenErrorGraph]
         for nodeIndex1 in range(len(oddErrorNodes)):
             for nodeIndex2 in range(nodeIndex1+1,len(oddErrorNodes)):
-                #weight = self.distanceDict[oddErrorNodes[nodeIndex1]][oddErrorNodes[nodeIndex2]]
-                weight = self.ComputeWeight(oddErrorNodes[nodeIndex1],oddErrorNodes[nodeIndex2])
+                weight = self.distanceDict[oddErrorNodes[nodeIndex1]][oddErrorNodes[nodeIndex2]]
                 oddErrorGraph.append((oddErrorNodes[nodeIndex1],oddErrorNodes[nodeIndex2],weight))
-            #minWeight = min([self.distanceDict[oddErrorNodes[nodeIndex1]]["L"],self.distanceDict[oddErrorNodes[nodeIndex1]]["R"]])
-            minWeight = min([self.ComputeWeight(oddErrorNodes[nodeIndex1],"L"),self.ComputeWeight(oddErrorNodes[nodeIndex1],"R")])
-            #if minWeight==self.distanceDict[oddErrorNodes[nodeIndex1]]["L"]:
-            if minWeight==self.ComputeWeight(oddErrorNodes[nodeIndex1],"L"):
+            minWeight = min([self.distanceDict[oddErrorNodes[nodeIndex1]]["L"],self.distanceDict[oddErrorNodes[nodeIndex1]]["R"]])
+            if minWeight==self.distanceDict[oddErrorNodes[nodeIndex1]]["L"]:
                 label = ("L",nodeIndex1)
-            #elif minWeight==self.distanceDict[oddErrorNodes[nodeIndex1]]["R"]:
-            elif minWeight==self.ComputeWeight(oddErrorNodes[nodeIndex1],"R"):
+            elif minWeight==self.distanceDict[oddErrorNodes[nodeIndex1]]["R"]:
                 label = ("R",nodeIndex1)
             oddErrorGraph.append((oddErrorNodes[nodeIndex1],label,minWeight))
             oddEdgeNodes.append(label)

@@ -5,7 +5,7 @@ overallSubmitFile = open("submitThresholdJobs.sh",'w+')
 biases = [1,100,10000,100000]
 clusterTypes = ["RHG","XZZX"]
 dxList = range(2,15)
-pList = [[.01,.015,.015,.015],[.01,.03,.05,.05]]
+pList = [[.0008,.003,.003,.003],[.0005,.006,.01,.01]]
 
 for biasIndex in range(len(biases)): 
     for clusterTypeIndex in range(len(clusterTypes)): 
@@ -17,7 +17,9 @@ for biasIndex in range(len(biases)):
             overallSubmitFile.write("sbatch "+fileName+"; ")
             submitFile = open(fileName,"w+")
             submitFile.write("#!/bin/bash\n")
-            submitFile.write("#SBATCH --job-name="+fileName+"\n")
+            submitFile.write("#SBATCH --job-name=Cluster_"+str(eta)+"_"+str(dx)+"_"+clusterType+"\n")
+            submitFile.write("#SBATCH --requeue\n")
+            submitFile.write("#SBATCH --partition scavenge\n")
             submitFile.write("#SBATCH --time=24:00:00\n\n")
         
             submitFile.write("module load matplotlib/3.3.4-foss-2020b\n")
