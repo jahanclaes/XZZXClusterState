@@ -135,7 +135,6 @@ class Syndrome:
         if clusterType=="XZZX":
             self.CNOTErrors = {twoQubitErrors[i]:weightsCNOT[i] for i in range(16)} #Errors are (target,control)
         else:
-            print(Hadamard(twoQubitErrors[0][0]),twoQubitErrors[0][1])
             self.CNOTErrors = {Hadamard(twoQubitErrors[i][0])+twoQubitErrors[i][1]:weightsCZ[i] for i in range(16)} #Hadamards make this the RHG Lattice
         self.CZErrors = {twoQubitErrors[i]:weightsCZ[i] for i in range(16)}
         try:
@@ -245,6 +244,7 @@ class Syndrome:
                     print("Error in reflexivity",key,self.correctMatches[key],self.correctMatches[self.correctMatches[key]])
                 if type(key)!=str and type(self.correctMatches[key])!=str and (key[1]+self.correctMatches[key][1])%2!=0:
                     print("Error in parity",key,self.correctMatches[key])
+                    print(asdf)
 
     def GenerateDefectsFromError(self,errorIndex,errorString,tIndex,zIndex,xIndex):
         """
@@ -287,7 +287,7 @@ class Syndrome:
                 defectPairList.append(((tIndex-1,zIndex+1,xIndex-zIndex%2),(tIndex-1,zIndex+1,xIndex-zIndex%2+1)))
             if errorString == "XX":
                 defectPairList=[((tIndex-1,zIndex-1,xIndex-zIndex%2),(tIndex-1,zIndex-1,xIndex-zIndex%2+1))]
-        if errorIndex==5 and xIndex>self.dz%2-1: #Gate below the ancilla
+        if errorIndex==5 and xIndex>zIndex%2-1: #Gate below the ancilla
             if errorString[0]=="X" or errorString[0]=="Y":
                 defectPairList.append(((tIndex-1,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
             if errorString[0]=="Z" or errorString[0]=="Y":
@@ -362,6 +362,9 @@ class Syndrome:
             elif point2[2]==self.dx-1 and point2[1]%2==0:
                 point2="T"
             defectPairList[index]=(point1,point2)
+        for point1,point2 in defectPairList:
+            if (point1=="B" and len(point2)>1 and point2[1]%2==1) or (point2=="B" and len(point1)>1 and point1[1]%2==1):
+                print(point1,point2,errorString,errorIndex,defectPairList)
         return defectPairList
 
     def GenerateErrors(self):
@@ -597,8 +600,9 @@ class Syndrome:
 """
 dz,dx=6,6
 dt=6
-eta=1
+eta=10
 p = .01
+#S = Syndrome(dz,dx,dt,p,eta,clusterType="RHG")
 S = Syndrome(dz,dx,dt,p,eta)
 totalX,totalZ = 0,0
 for i in range(1000):
@@ -616,7 +620,6 @@ for i in range(1000):
     #S.PlotCluster(ax,plotScaffold=False)
     S.AttemptCorrectionOfErrors()
     Z,X = S.FindLogicalErrors()
-    print(S.correctMatches)
     if Z:
         totalZ+=1
     if X:
