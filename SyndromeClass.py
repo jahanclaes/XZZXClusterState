@@ -260,47 +260,47 @@ class Syndrome:
             if zIndex%2==0 and (errorString == "Z" or errorString=="Y"):
                 defectPairList.append(((tIndex-1,zIndex+1,xIndex),(tIndex-1,zIndex-1,xIndex)))
             if zIndex%2==1 and (errorString == "X" or errorString=="Y"):
-                defectPairList.append(((tIndex-1,zIndex,xIndex+1),(tIndex-1,zIndex,xIndex)))
+                defectPairList.append(((tIndex-1,zIndex,xIndex+zIndex%2-1),(tIndex-1,zIndex,xIndex+zIndex%2)))
         if errorIndex==2: # Layer2 data qubit Preparation/Measurement errors
             if zIndex%2==0 and (errorString == "X" or errorString=="Y"):
-                defectPairList.append(((tIndex,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
+                defectPairList.append(((tIndex,zIndex,xIndex+zIndex%2-1),(tIndex,zIndex,xIndex+zIndex%2)))
             if zIndex%2==1 and (errorString == "Z" or errorString=="Y"):
                 defectPairList.append(((tIndex,zIndex+1,xIndex),(tIndex,zIndex-1,xIndex)))
         if errorIndex==3 and zIndex>0: #Gate to the left of the ancilla
             if errorString[0]=="X" or errorString[0]=="Y":
-                defectPairList.append(((tIndex-1,zIndex-1,xIndex-zIndex%2),(tIndex-1,zIndex-1,xIndex-zIndex%2+1)))
+                defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2+1)))
             if errorString[0]=="Z" or errorString[0]=="Y":
                 defectPairList.append(((tIndex-1,zIndex-2,xIndex),(tIndex,zIndex,xIndex)))
             if errorString[1]=="Z" or errorString[1]=="Y":
                 defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
             if errorString[1]=="X" or errorString[1]=="Y":
-                defectPairList.append(((tIndex-1,zIndex-1,xIndex),(tIndex-1,zIndex-1,xIndex+1)))
+                defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2+1)))
         if errorIndex==4 and zIndex<2*self.dz-2: #Gate to the right of the ancilla
             if errorString[0]=="X" or errorString[0]=="Y":
-                defectPairList.append(((tIndex-1,zIndex+1,xIndex-zIndex%2),(tIndex-1,zIndex+1,xIndex-zIndex%2+1)))
+                defectPairList.append(((tIndex-1+zIndex%2,zIndex+1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex+1,xIndex-zIndex%2+1)))
             if errorString[0]=="Z" or errorString[0]=="Y":
                 defectPairList.append(((tIndex,zIndex,xIndex),(tIndex,zIndex+2,xIndex)))
             if errorString[1]=="Z" or errorString[1]=="Y":
                 defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
             if errorString[1]=="X" or errorString[1]=="Y":
-                defectPairList.append(((tIndex-1,zIndex-1,xIndex-zIndex%2),(tIndex-1,zIndex-1,xIndex-zIndex%2+1)))
-                defectPairList.append(((tIndex-1,zIndex+1,xIndex-zIndex%2),(tIndex-1,zIndex+1,xIndex-zIndex%2+1)))
+                defectPairList.append(((tIndex-1+zIndex%2,zIndex+1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex+1,xIndex-zIndex%2+1)))
+                defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2+1)))
             if errorString == "XX":
-                defectPairList=[((tIndex-1,zIndex-1,xIndex-zIndex%2),(tIndex-1,zIndex-1,xIndex-zIndex%2+1))]
+                defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2+1)))
         if errorIndex==5 and xIndex>zIndex%2-1: #Gate below the ancilla
             if errorString[0]=="X" or errorString[0]=="Y":
                 defectPairList.append(((tIndex-1,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
             if errorString[0]=="Z" or errorString[0]=="Y":
-                defectPairList.append(((tIndex-1,zIndex-1,xIndex-zIndex%2),(tIndex-1,zIndex+1,xIndex-zIndex%2)))
+                defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex+1,xIndex-zIndex%2)))
             if errorString[1]=="Z" or errorString[1]=="Y":
                 defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
             if errorString[1]=="X" or errorString[1]=="Y":
-                defectPairList.append(((tIndex-1,zIndex-1,xIndex+1-zIndex%2),(tIndex-1,zIndex+1,xIndex+1-zIndex%2)))
+                defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex+1-zIndex%2),(tIndex-1+zIndex%2,zIndex+1,xIndex+1-zIndex%2)))
         if errorIndex==6 and xIndex<self.dx-1: #Gate above the ancilla
             if errorString[0]=="X" or errorString[0]=="Y":
                 defectPairList.append(((tIndex,zIndex,xIndex+1),(tIndex,zIndex,xIndex)))
             if errorString[0]=="Z" or errorString[0]=="Y":
-                defectPairList.append(((tIndex-1,zIndex-1,xIndex+1-zIndex%2),(tIndex-1,zIndex+1,xIndex+1-zIndex%2)))
+                defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex+1-zIndex%2),(tIndex-1+zIndex%2,zIndex+1,xIndex+1-zIndex%2)))
             if errorString[1]=="Z" or errorString[1]=="Y":
                 defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
             if errorString[1]=="X" or errorString[1]=="Y":
@@ -362,9 +362,6 @@ class Syndrome:
             elif point2[2]==self.dx-1 and point2[1]%2==0:
                 point2="T"
             defectPairList[index]=(point1,point2)
-        for point1,point2 in defectPairList:
-            if (point1=="B" and len(point2)>1 and point2[1]%2==1) or (point2=="B" and len(point1)>1 and point1[1]%2==1):
-                print(point1,point2,errorString,errorIndex,defectPairList)
         return defectPairList
 
     def GenerateErrors(self):
@@ -488,17 +485,6 @@ class Syndrome:
                         probability=self.CNOTErrors[gateError]
                         if probability>0:
                             AddToNodeGraph(probability,defectPairList)
-                for xIndex in range(self.dx-zIndex%2): #Index over data qubits
-                    for layerOneDataError in self.SPAMErrors:#Layer 1 Preparation/Measurement errors
-                        defectPairList = self.GenerateDefectsFromError(1,layerOneDataError,tIndex,zIndex,xIndex)
-                        probability = self.SPAMErrors[layerOneDataError]
-                        if probability>0:
-                            AddToNodeGraph(probability,defectPairList)
-                    for layerTwoDataError in self.SPAMErrors:#Layer 2 Preparation/Measurement errors
-                        defectPairList = self.GenerateDefectsFromError(2,layerTwoDataError,tIndex,zIndex,xIndex)
-                        probability = self.SPAMErrors[layerTwoDataError]
-                        if probability>0:
-                            AddToNodeGraph(probability,defectPairList)
         for defect1,defect2 in distanceGraph.edges():
             distanceGraph[defect1][defect2]['weight']=-math.log(distanceGraph[defect1][defect2]['weight']/(1-distanceGraph[defect1][defect2]['weight']))
         distanceDict = dict(nx.all_pairs_dijkstra_path_length(distanceGraph))
@@ -600,12 +586,12 @@ class Syndrome:
 """
 dz,dx=6,6
 dt=6
-eta=10
+eta=1
 p = .01
 #S = Syndrome(dz,dx,dt,p,eta,clusterType="RHG")
 S = Syndrome(dz,dx,dt,p,eta)
 totalX,totalZ = 0,0
-for i in range(1000):
+for i in range(100):
     S.Clear()
     S.GenerateErrors()
     saveFile=open("saveFile.pk",'wb')
