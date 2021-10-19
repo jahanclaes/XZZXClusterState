@@ -138,16 +138,20 @@ class Syndrome:
             self.CNOTErrors = {Hadamard(twoQubitErrors[i][0])+twoQubitErrors[i][1]:weightsCZ[i] for i in range(16)} #Hadamards make this the RHG Lattice
         self.CZErrors = {twoQubitErrors[i]:weightsCZ[i] for i in range(16)}
         try:
-            saveFile = open("distanceDict_"+str(self.dt)+"_"+str(self.dz)+"_"+str(self.dx)+"_"+str(p)+"_"+str(eta)+"_"+clusterType+".pk",'rb')
-            self.distanceDict = pickle.load(saveFile)
+            saveFile = open("distanceDict_"+str(clusterType)+"_"+str(dt)+"_"+str(dz)+"_"+str(dx)+"_"+str(eta)+".pk",'rb')
+            self.distanceDict,baseProbability = pickle.load(saveFile)
             saveFile.close()
+            for key1 in self.distanceDict:
+                for key2 in self.distanceDict[key1]:
+                    self.distanceDict[key1][key2]=self.distanceDict[key1][key2]-math.log(baseProbability/p)
             print("Loaded")
         except:
             self.distanceDict = self.GenerateDistanceDict()
-            saveFile = open("distanceDict_"+str(self.dt)+"_"+str(self.dz)+"_"+str(self.dx)+"_"+str(p)+"_"+str(eta)+"_"+clusterType+".pk",'wb')
-            pickle.dump(self.distanceDict,saveFile)
+            saveFile = open("distanceDict_"+str(clusterType)+"_"+str(dt)+"_"+str(dz)+"_"+str(dx)+"_"+str(eta)+".pk",'wb')
+            pickle.dump((self.distanceDict,p),saveFile)
             saveFile.close()
-    
+
+   
     def Clear(self):
         self.correctMatches = {}
         self.decodedMatches = {}
