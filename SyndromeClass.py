@@ -100,14 +100,14 @@ def mwpm(edges):
 Overall measurement pattern on a single stabilizer is X-X-Z-Z:
   Z      2
  / \    / \ 
-X   X  1   4 
+X   X  3   4 
  \ /    \ /
-  Z      3  
+  Z      1  
 """
 
 class Syndrome:
 
-    def __init__(self,dz,dx,dt,p,eta,clusterType='XZZX'):
+    def __init__(self,dz,dx,dt,p,eta):
         """
         Initializes a Syndrome object
         dx and dz are the dimensions of the code
@@ -128,17 +128,12 @@ class Syndrome:
         twoQubitErrors =["II","IZ","ZI","ZZ","IX","IY","XI","XX","XY","XZ","YI","YX","YY","YZ","ZX","ZY"] 
         weightsSPAM = [1-(pMeasure+pPrep)*(1+2/eta),pMeasure+pPrep,(pMeasure+pPrep)/eta,(pMeasure+pPrep)/eta]
         weightsIdle = [0]*4 
-        weightsCNOT = [1-2*pCNOT-12*pCNOT/eta,pCNOT,pCNOT/2,pCNOT/2]+[pCNOT/eta]*12 
         weightsCZ = [1-2*pCZ-pCZ**2-12*pCZ/eta,pCZ,pCZ,pCZ**2]+[pCZ/eta]*12
         self.SPAMErrors = {singleQubitErrors[i]:weightsSPAM[i] for i in range(4)}
         self.idleErrors = {singleQubitErrors[i]:weightsIdle[i] for i in range(4)}
-        if clusterType=="XZZX":
-            self.CNOTErrors = {twoQubitErrors[i]:weightsCNOT[i] for i in range(16)} #Errors are (target,control)
-        else:
-            self.CNOTErrors = {Hadamard(twoQubitErrors[i][0])+twoQubitErrors[i][1]:weightsCZ[i] for i in range(16)} #Hadamards make this the RHG Lattice
         self.CZErrors = {twoQubitErrors[i]:weightsCZ[i] for i in range(16)}
         try:
-            saveFile = open("distanceDict_"+str(clusterType)+"_"+str(dt)+"_"+str(dz)+"_"+str(dx)+"_"+str(eta)+".pk",'rb')
+            saveFile = open("distanceDict_"+str(dt)+"_"+str(dz)+"_"+str(dx)+"_"+str(eta)+".pk",'rb')
             self.distanceDict,baseProbability = pickle.load(saveFile)
             saveFile.close()
             for key1 in self.distanceDict:
@@ -147,7 +142,7 @@ class Syndrome:
             print("Loaded")
         except:
             self.distanceDict = self.GenerateDistanceDict()
-            saveFile = open("distanceDict_"+str(clusterType)+"_"+str(dt)+"_"+str(dz)+"_"+str(dx)+"_"+str(eta)+".pk",'wb')
+            saveFile = open("distanceDict_"+str(dt)+"_"+str(dz)+"_"+str(dx)+"_"+str(eta)+".pk",'wb')
             pickle.dump((self.distanceDict,p),saveFile)
             saveFile.close()
 
@@ -261,16 +256,32 @@ class Syndrome:
             if errorString == "Z" or errorString=="Y":
                 defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
         if errorIndex==1: # Layer1 data qubit Preparation/Measurement errors
-            if zIndex%2==0 and (errorString == "Z" or errorString=="Y"):
+            if errorString == "Z" or errorString=="Y":
                 defectPairList.append(((tIndex-1,zIndex+1,xIndex),(tIndex-1,zIndex-1,xIndex)))
-            if zIndex%2==1 and (errorString == "X" or errorString=="Y"):
-                defectPairList.append(((tIndex-1,zIndex,xIndex+zIndex%2-1),(tIndex-1,zIndex,xIndex+zIndex%2)))
         if errorIndex==2: # Layer2 data qubit Preparation/Measurement errors
-            if zIndex%2==0 and (errorString == "X" or errorString=="Y"):
-                defectPairList.append(((tIndex,zIndex,xIndex+zIndex%2-1),(tIndex,zIndex,xIndex+zIndex%2)))
-            if zIndex%2==1 and (errorString == "Z" or errorString=="Y"):
-                defectPairList.append(((tIndex,zIndex+1,xIndex),(tIndex,zIndex-1,xIndex)))
-        if errorIndex==3 and zIndex>0: #Gate to the left of the ancilla
+            if errorString == "Z" or errorString=="Y":
+                defectPairList.append(((tIndex,zIndex,xIndex+1-zIndex%2),(tIndex,zIndex,xIndex+1-zIndex%2+1)))
+        if errorIndex==3 and xIndex>zIndex%2-1: #Gate below the ancilla
+            #Assume the errorString is (data, ancilla)
+            if errorString[0]=="Z" or errorString[0]=="Y": 
+                defectPairList.append(((tIndex-1,zIndex-1,xIndex),(tIndex-1,zIndex+1,xIndex)))
+            if errorString[0]=="X" or errorString[0]=="Y":
+                defectPairList.append(((tIndex-1,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
+            if errorString[1]=="Z" or errorString[1]=="Y":
+                defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
+            if errorString[1]=="X" or errorString[1]=="Y":
+                defectPairList.append(((tIndex-1,zIndex-1,xIndex),(tIndex-1,zIndex+1,xIndex)))
+        if errorIndex==4 and xIndex<self.dx-1: #Gate above the ancilla
+            if errorString[0]=="Z" or errorString[0]=="Y": 
+                defectPairList.append(((tIndex-1,zIndex-1,xIndex),(tIndex-1,zIndex+1,xIndex)))
+            if errorString[0]=="X" or errorString[0]=="Y":
+                defectPairList.append(((tIndex-1,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
+            if errorString[1]=="Z" or errorString[1]=="Y":
+                defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
+            if errorString[1]=="X" or errorString[1]=="Y":
+                defectPairList.append(((tIndex-1,zIndex-1,xIndex),(tIndex-1,zIndex+1,xIndex)))
+
+        if errorIndex==5 and zIndex>0: #Gate to the left of the ancilla
             if errorString[0]=="X" or errorString[0]=="Y":
                 defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2+1)))
             if errorString[0]=="Z" or errorString[0]=="Y":
@@ -279,7 +290,7 @@ class Syndrome:
                 defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
             if errorString[1]=="X" or errorString[1]=="Y":
                 defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2+1)))
-        if errorIndex==4 and zIndex<2*self.dz-2: #Gate to the right of the ancilla
+        if errorIndex==6 and zIndex<2*self.dz-2: #Gate to the right of the ancilla
             if errorString[0]=="X" or errorString[0]=="Y":
                 defectPairList.append(((tIndex-1+zIndex%2,zIndex+1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex+1,xIndex-zIndex%2+1)))
             if errorString[0]=="Z" or errorString[0]=="Y":
@@ -291,24 +302,6 @@ class Syndrome:
                 defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2+1)))
             if errorString == "XX":
                 defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2+1)))
-        if errorIndex==5 and xIndex>zIndex%2-1: #Gate below the ancilla
-            if errorString[0]=="X" or errorString[0]=="Y":
-                defectPairList.append(((tIndex-1,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
-            if errorString[0]=="Z" or errorString[0]=="Y":
-                defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex+1,xIndex-zIndex%2)))
-            if errorString[1]=="Z" or errorString[1]=="Y":
-                defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
-            if errorString[1]=="X" or errorString[1]=="Y":
-                defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex+1-zIndex%2),(tIndex-1+zIndex%2,zIndex+1,xIndex+1-zIndex%2)))
-        if errorIndex==6 and xIndex<self.dx-1: #Gate above the ancilla
-            if errorString[0]=="X" or errorString[0]=="Y":
-                defectPairList.append(((tIndex,zIndex,xIndex+1),(tIndex,zIndex,xIndex)))
-            if errorString[0]=="Z" or errorString[0]=="Y":
-                defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex+1-zIndex%2),(tIndex-1+zIndex%2,zIndex+1,xIndex+1-zIndex%2)))
-            if errorString[1]=="Z" or errorString[1]=="Y":
-                defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
-            if errorString[1]=="X" or errorString[1]=="Y":
-                pass
         if errorIndex==7: #First Layer Entangling Gate
             if zIndex%2==0:
                 if errorString[0]=="X" or errorString[0]=="Y": #Upper end
