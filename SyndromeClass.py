@@ -275,12 +275,13 @@ class Syndrome:
             if errorString[0]=="Z" or errorString[0]=="Y": 
                 defectPairList.append(((tIndex-1,zIndex-1,xIndex),(tIndex-1,zIndex+1,xIndex)))
             if errorString[0]=="X" or errorString[0]=="Y":
-                defectPairList.append(((tIndex-1,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
+                defectPairList.append(((tIndex-1,zIndex-1,xIndex-zIndex%2),(tIndex-1,zIndex+1,xIndex,xIndex-zIndex%2)))
+                defectPairList.append(((tIndex-1,zIndex-1,xIndex-zIndex%2+1),(tIndex-1,zIndex+1,xIndex,xIndex-zIndex%2+1)))
             if errorString[1]=="Z" or errorString[1]=="Y":
-                defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
+                defectPairList.append(((tIndex-1,zIndex-1,xIndex-zIndex%2+1),(tIndex-1,zIndex+1,xIndex,xIndex-zIndex%2+1)))
+                
             if errorString[1]=="X" or errorString[1]=="Y":
                 defectPairList.append(((tIndex-1,zIndex-1,xIndex),(tIndex-1,zIndex+1,xIndex)))
-
         if errorIndex==5 and zIndex>0: #Gate to the left of the ancilla
             if errorString[0]=="X" or errorString[0]=="Y":
                 defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2+1)))
