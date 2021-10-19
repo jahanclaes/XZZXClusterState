@@ -290,7 +290,7 @@ class Syndrome:
                 defectPairList.append(((tIndex-1+zIndex%2,zIndex+1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex+1,xIndex-zIndex%2+1)))
                 defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2+1)))
             if errorString == "XX":
-                defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2+1)))
+                defectPairList=[((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2+1))]
         if errorIndex==5 and xIndex>zIndex%2-1: #Gate below the ancilla
             if errorString[0]=="X" or errorString[0]=="Y":
                 defectPairList.append(((tIndex-1,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
