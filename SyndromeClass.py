@@ -1,5 +1,5 @@
 import matplotlib
-matplotlib.use('TkAgg')
+#matplotlib.use('TkAgg')
 import numpy as np
 import networkx as nx
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
@@ -120,6 +120,7 @@ class Syndrome:
         self.correctMatches = {}
         self.decodedMatches = {}
         self.defectDictionary = {}
+        self.numCrossingsInTime = 0
         pIdle=p
         pPrep=p
         pMeasure=p
@@ -222,6 +223,8 @@ class Syndrome:
                     plt.plot([point1[1]/2,point2[1]/2],[point1[2]+((point1[1]+1)%2)/2,point2[2]+((point2[1]+1)%2)/2],[point1[0]+1,point2[0]+1],color=matchColor,lw=errorWeight,ls='dotted')
 
     def AddMatchedPair(self,point1,point2):
+        if type(point1)!=str and type(point2)!=str and abs(point1[0]-point2[0])>self.dt-abs(point1[0]-point2[0]):
+            self.numCrossingsInTime+=1
         if point1!=point2:
             if point1 in self.correctMatches.keys() and point2 in self.correctMatches.keys():
                 if self.correctMatches[point1]!=self.correctMatches[point2]:
@@ -618,24 +621,28 @@ class Syndrome:
         Call after AttemptCorrectionOfErrors
         Returns the logical errors we made by attempting error correction
         """
-        ZLogicalError,XLogicalError=False,False
+        TLogicalError,ZLogicalError,XLogicalError=False,False,False
         if "L" in self.correctMatches.keys():
             if self.correctMatches["L"]=="R":
                 ZLogicalError=not ZLogicalError
         if "T" in self.correctMatches.keys():
             if self.correctMatches["T"]=="B":
                 XLogicalError=not XLogicalError
-        return ZLogicalError,XLogicalError
+        if self.numCrossingsInTime%2==1:
+            TLogicalError=True
+        return TLogicalError,ZLogicalError,XLogicalError
+        
                 
 
 
-dz,dx=6,6
-dt=6
-eta=100
-p = .01
-S = Syndrome(dz,dx,dt,p,eta,clusterType="RHG")
-#S = Syndrome(dz,dx,dt,p,eta)
-totalX,totalZ = 0,0
+"""
+dz,dx=10,10
+dt=10
+eta=10000
+p = .005
+#S = Syndrome(dz,dx,dt,p,eta,clusterType="RHG")
+S = Syndrome(dz,dx,dt,p,eta)
+totalT,totalZ,totalX = 0,0,0
 for i in range(100):
     S.Clear()
     S.GenerateErrors()
@@ -650,10 +657,13 @@ for i in range(100):
     #ax = fig.add_subplot(1,1,1,projection='3d')
     #S.PlotCluster(ax,plotScaffold=True)
     S.AttemptCorrectionOfErrors()
-    Z,X = S.FindLogicalErrors()
+    T,Z,X = S.FindLogicalErrors()
     if Z:
         totalZ+=1
     if X:
         totalX+=1
+    if T:
+        totalT+=1
     plt.show()
-print(totalX,totalZ)
+print(totalT,totalZ,totalX)
+"""
