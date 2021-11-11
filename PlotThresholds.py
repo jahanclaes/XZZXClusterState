@@ -27,7 +27,7 @@ for eta in [1,100,10000]:
                 errorProbList = [sum(logicalErrorCounts[i])/totalCounts[i] for i in range(len(pList))]
                 errorXProbList = [logicalErrorCounts[i][0]/totalCounts[i] for i in range(len(pList))]
                 errorZProbList = [logicalErrorCounts[i][1]/totalCounts[i] for i in range(len(pList))]
-                if totalCounts[0]>200:
+                if totalCounts[0]>00:
                     ax.errorbar(pList,errorProbList,[math.sqrt(abs(errorProbList[i]-errorProbList[i]**2))/math.sqrt(totalCounts[i]) for i in range(len(pList))],label="dz="+str(dz))
             except:
                 pass

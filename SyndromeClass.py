@@ -119,6 +119,7 @@ class Syndrome:
         self.clusterType=clusterType
         self.correctMatches = {}
         self.decodedMatches = {}
+        self.defectDictionary = {}
         pIdle=p
         pPrep=p
         pMeasure=p
@@ -250,13 +251,44 @@ class Syndrome:
                     print("Error in parity",key,self.correctMatches[key])
                     print(asdf)
 
+    def AddMatchedPairDefectDict(self,point1,point2):
+        if point1!=point2:
+            if point1 in self.defectDictionary.keys() and point2 in self.defectDictionary.keys():
+                if self.defectDictionary[point1]!=self.defectDictionary[point2]:
+                    self.defectDictionary[self.defectDictionary[point1]]=self.defectDictionary[point2]
+                    self.defectDictionary[self.defectDictionary[point2]]=self.defectDictionary[point1]
+                    del self.defectDictionary[point1]
+                    del self.defectDictionary[point2]
+                else:
+                    del self.defectDictionary[self.defectDictionary[point1]]
+                    del self.defectDictionary[point1]
+                    del self.defectDictionary[point2]
+            elif point1 in self.defectDictionary.keys():
+                self.defectDictionary[self.defectDictionary[point1]]=point2
+                self.defectDictionary[point2]=self.defectDictionary[point1]
+                del self.defectDictionary[point1]
+            elif point2 in self.defectDictionary.keys():
+                self.defectDictionary[self.defectDictionary[point2]]=point1
+                self.defectDictionary[point1]=self.defectDictionary[point2]
+                del self.defectDictionary[point2]
+            else:
+                self.defectDictionary[point1]=point2
+                self.defectDictionary[point2]=point1
+            for key in self.defectDictionary.keys():
+                if self.defectDictionary[self.defectDictionary[key]]!=key:
+                    print("Error in reflexivity",key,self.defectDictionary[key],self.defectDictionary[self.defectDictionary[key]])
+                if type(key)!=str and type(self.defectDictionary[key])!=str and (key[1]+self.defectDictionary[key][1])%2!=0:
+                    print("Error in parity",key,self.defectDictionary[key])
+                    print(asdf)
+
+
     def GenerateDefectsFromError(self,errorIndex,errorString,tIndex,zIndex,xIndex):
         """
-        Generates a pair of defects associated to an error
+        Generates pairs of defects associated to an error
         ErrorIndex indexes the type of error that we are experiencing
         tIndex,xIndex,zIndex are coordinates of the ancilla measurement qubit, layer-1 data qubits, or layer-2 data qubits
         """
-        defectPairList=[]
+        defectPairList=[] 
         if errorIndex==0: # Ancilla Preparation/Measurement errors
             if errorString == "Z" or errorString=="Y":
                 defectPairList.append(((tIndex-1,zIndex,xIndex),(tIndex,zIndex,xIndex)))
@@ -289,8 +321,6 @@ class Syndrome:
             if errorString[1]=="X" or errorString[1]=="Y":
                 defectPairList.append(((tIndex-1+zIndex%2,zIndex+1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex+1,xIndex-zIndex%2+1)))
                 defectPairList.append(((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2+1)))
-            if errorString == "XX":
-                defectPairList=[((tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2),(tIndex-1+zIndex%2,zIndex-1,xIndex-zIndex%2+1))]
         if errorIndex==5 and xIndex>zIndex%2-1: #Gate below the ancilla
             if errorString[0]=="X" or errorString[0]=="Y":
                 defectPairList.append(((tIndex-1,zIndex,xIndex-1),(tIndex,zIndex,xIndex)))
@@ -347,8 +377,11 @@ class Syndrome:
                     defectPairList.append(((tIndex,zIndex-1,xIndex),(tIndex,zIndex+1,xIndex)))
                 if errorString[1]=="X" or errorString[1]=="Y": #Lower end
                     pass
+        # Relabel boundary points appropriately
         for index in range(len(defectPairList)):
             point1,point2 = defectPairList[index]
+            if point1[0]==-1:
+                point1==(self.dt-1,point1[1],point1[2])
             if point1[1]==-1:
                 point1="L"
             elif point1[1]==2*self.dz-1:
@@ -357,6 +390,8 @@ class Syndrome:
                 point1="B"
             elif point1[2]==self.dx-1 and point1[1]%2==0:
                 point1="T"
+            if point2[0]==-1:
+                point2==(self.dt-1,point2[1],point2[2])
             if point2[1]==-1:
                 point2="L"
             elif point2[1]==2*self.dz-1:
@@ -366,6 +401,14 @@ class Syndrome:
             elif point2[2]==self.dx-1 and point2[1]%2==0:
                 point2="T"
             defectPairList[index]=(point1,point2)
+        # Transfer to dictionary and back to list, to get rid of excess pairs
+        self.defectDictionary = {} #Clear the defectDictionary
+        for point1,point2 in defectPairList:
+            self.AddMatchedPairDefectDict(point1,point2)
+        defectPairList = []
+        for key in self.defectDictionary:
+            if not (key in [d[0] for d in defectPairList] or key in [d[1] for d in defectPairList]):
+                defectPairList.append((key,self.defectDictionary[key]))
         return defectPairList
 
     def GenerateErrors(self):
@@ -471,7 +514,7 @@ class Syndrome:
                             AddToNodeGraph(probability,defectPairList)
                     #Layer 2 Data Preparation/Measurement errors
                     for layerTwoDataError in self.SPAMErrors:
-                        probability=self.SPAMErrors[layerOneDataError]
+                        probability=self.SPAMErrors[layerTwoDataError]
                         if self.clusterType=="RHG" and zIndex%2==0:
                             layerTwoDataError = Hadamard(layerTwoDataError)
                         defectPairList = self.GenerateDefectsFromError(2,layerTwoDataError,tIndex,zIndex,xIndex)
@@ -586,14 +629,12 @@ class Syndrome:
                 
 
 
-        
-"""
 dz,dx=6,6
 dt=6
-eta=1
+eta=100
 p = .01
-#S = Syndrome(dz,dx,dt,p,eta,clusterType="RHG")
-S = Syndrome(dz,dx,dt,p,eta)
+S = Syndrome(dz,dx,dt,p,eta,clusterType="RHG")
+#S = Syndrome(dz,dx,dt,p,eta)
 totalX,totalZ = 0,0
 for i in range(100):
     S.Clear()
@@ -607,7 +648,7 @@ for i in range(100):
     S.MatchErrors()
     #fig = plt.figure()
     #ax = fig.add_subplot(1,1,1,projection='3d')
-    #S.PlotCluster(ax,plotScaffold=False)
+    #S.PlotCluster(ax,plotScaffold=True)
     S.AttemptCorrectionOfErrors()
     Z,X = S.FindLogicalErrors()
     if Z:
@@ -616,4 +657,3 @@ for i in range(100):
         totalX+=1
     plt.show()
 print(totalX,totalZ)
-"""
