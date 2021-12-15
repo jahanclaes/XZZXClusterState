@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
 import networkx as nx
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import math
@@ -358,10 +360,15 @@ class Syndrome:
                 
 
 
-"""      
-dz,dx,dt=5,5,5
+dz,dx,dt=3,3,3
 eta=100
 p = .05
+S = Syndrome(dt,dz,dx,p,eta)
+fig = plt.figure()
+ax = fig.add_subplot(1,1,1,projection='3d')
+S.PlotCluster(ax)
+plt.show()
+""" 
 for i in range(10):
     S = Syndrome(dt,dz,dx,p,eta)
     S.GenerateErrors()
