@@ -13,7 +13,7 @@ if len(sys.argv)==5:
     XZZX = False
 
 numSamples=100
-pList = np.linspace(0.0001,2*pEst,15)
+pList = np.linspace(.8*pEst,1.2*pEst,15)
 try:
     if XZZX:
         saveFile=open("simulationData3D_"+str(eta)+"_"+str(d)+".pk",'rb')
@@ -30,14 +30,12 @@ for p in pList:
     start=time.time()
     for i in range(numSamples):
         print(p,i)
-        if eta==10000 and XZZX:
-            S = SC.Syndrome(3*d,3*d,1,p,eta,XZZX=XZZX)
-        elif eta==10000 and not XZZX:
+        if eta==10001 and XZZX:
+            S = SC.Syndrome(3*d,3*d,5,p,eta,XZZX=XZZX)
+        elif eta==100000 and not XZZX:
             S = SC.Syndrome(d,d,d,p,eta,XZZX=XZZX)
-        elif eta==100 and XZZX:
+        elif eta>=100 and XZZX:
             S = SC.Syndrome(3*d,3*d,d,p,eta,XZZX=XZZX)
-        elif eta==100 and not XZZX:
-            S = SC.Syndrome(d,d,d,p,eta,XZZX=XZZX)
         else:
             S = SC.Syndrome(d,d,d,p,eta,XZZX=XZZX)
         S.GenerateErrors()

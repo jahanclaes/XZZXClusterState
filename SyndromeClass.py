@@ -360,6 +360,7 @@ class Syndrome:
                 
 
 
+""" 
 dz,dx,dt=3,3,3
 eta=100
 p = .05
@@ -368,7 +369,6 @@ fig = plt.figure()
 ax = fig.add_subplot(1,1,1,projection='3d')
 S.PlotCluster(ax)
 plt.show()
-""" 
 for i in range(10):
     S = Syndrome(dt,dz,dx,p,eta)
     S.GenerateErrors()
